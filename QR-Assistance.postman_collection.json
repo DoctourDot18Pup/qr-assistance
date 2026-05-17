@@ -1,0 +1,772 @@
+{
+  "info": {
+    "name": "QR-Assistance API",
+    "_postman_id": "qr-assistance-collection-v1",
+    "description": "Colección completa del Sistema de Control de Asistencia Académica.\n\n**Setup:**\n1. Crear un entorno en Postman con la variable `baseUrl` = `http://localhost:3000`\n2. Ejecutar **Auth > Login** con el rol deseado\n3. El script de login guarda automáticamente el token en la variable `authToken`\n4. Todos los demás requests usan `{{authToken}}` en el header Authorization",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "authToken", "value": "" },
+    { "key": "careerId", "value": "1" },
+    { "key": "periodId", "value": "1" },
+    { "key": "subjectId", "value": "1" },
+    { "key": "groupId", "value": "1" },
+    { "key": "gsId", "value": "1" },
+    { "key": "studentId", "value": "2" },
+    { "key": "sessionId", "value": "1" },
+    { "key": "attendanceId", "value": "1" },
+    { "key": "justificationId", "value": "1" },
+    { "key": "notificationId", "value": "1" },
+    { "key": "qrToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Usa POST /api/auth/token para obtener un Bearer JWT directamente. El script de test guarda el token en {{authToken}} automáticamente.",
+      "item": [
+        {
+          "name": " Login Admin → guarda token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.token) {",
+                  "  pm.collectionVariables.set('authToken', res.data.token);",
+                  "  pm.collectionVariables.set('currentUserId', String(res.data.user.id));",
+                  "  console.log(' Token guardado. Rol:', res.data.user.role);",
+                  "  pm.test('Login exitoso', () => pm.response.to.have.status(200));",
+                  "} else {",
+                  "  pm.test('Login fallido', () => { throw new Error(res.message); });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@itcelaya.edu.mx\",\n  \"password\": \"password\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/token", "host": ["{{baseUrl}}"], "path": ["api", "auth", "token"] },
+            "description": "Devuelve un JWT con expiración de 7 días. El token se guarda en {{authToken}} y se usa automáticamente en todos los demás requests."
+          }
+        },
+        {
+          "name": "🔑 Login Teacher → guarda token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.token) {",
+                  "  pm.collectionVariables.set('authToken', res.data.token);",
+                  "  pm.collectionVariables.set('currentUserId', String(res.data.user.id));",
+                  "  console.log(' Token guardado. Rol:', res.data.user.role);",
+                  "  pm.test('Login exitoso', () => pm.response.to.have.status(200));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"teacher@itcelaya.edu.mx\",\n  \"password\": \"password\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/token", "host": ["{{baseUrl}}"], "path": ["api", "auth", "token"] },
+            "description": "Cambia a sesión de docente. Crea este usuario en la DB primero (role=teacher)."
+          }
+        },
+        {
+          "name": "🔑 Login Student → guarda token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.token) {",
+                  "  pm.collectionVariables.set('authToken', res.data.token);",
+                  "  pm.collectionVariables.set('currentUserId', String(res.data.user.id));",
+                  "  console.log(' Token guardado. Rol:', res.data.user.role);",
+                  "  pm.test('Login exitoso', () => pm.response.to.have.status(200));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"student@itcelaya.edu.mx\",\n  \"password\": \"password\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/token", "host": ["{{baseUrl}}"], "path": ["api", "auth", "token"] },
+            "description": "Cambia a sesión de alumno. Crea este usuario en la DB primero (role=student)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "GET /api/users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"] },
+            "description": "Lista todos los usuarios. Rol requerido: admin"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Careers",
+      "item": [
+        {
+          "name": "GET /api/careers",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/careers", "host": ["{{baseUrl}}"], "path": ["api", "careers"] }
+          }
+        },
+        {
+          "name": "POST /api/careers",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ingeniería en Sistemas\",\n  \"code\": \"ISC\",\n  \"active\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/careers", "host": ["{{baseUrl}}"], "path": ["api", "careers"] }
+          }
+        },
+        {
+          "name": "GET /api/careers/:id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/careers/{{careerId}}", "host": ["{{baseUrl}}"], "path": ["api", "careers", "{{careerId}}"] }
+          }
+        },
+        {
+          "name": "PUT /api/careers/:id",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ingeniería en Sistemas Computacionales\",\n  \"code\": \"ISC\",\n  \"active\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/careers/{{careerId}}", "host": ["{{baseUrl}}"], "path": ["api", "careers", "{{careerId}}"] }
+          }
+        },
+        {
+          "name": "DELETE /api/careers/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/careers/{{careerId}}", "host": ["{{baseUrl}}"], "path": ["api", "careers", "{{careerId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Periods",
+      "item": [
+        {
+          "name": "GET /api/periods",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/periods", "host": ["{{baseUrl}}"], "path": ["api", "periods"] }
+          }
+        },
+        {
+          "name": "POST /api/periods",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Enero-Junio 2025\",\n  \"startDate\": \"2025-01-06\",\n  \"endDate\": \"2025-06-20\",\n  \"active\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/periods", "host": ["{{baseUrl}}"], "path": ["api", "periods"] }
+          }
+        },
+        {
+          "name": "GET /api/periods/:id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/periods/{{periodId}}", "host": ["{{baseUrl}}"], "path": ["api", "periods", "{{periodId}}"] }
+          }
+        },
+        {
+          "name": "PUT /api/periods/:id",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Enero-Julio 2025\",\n  \"active\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/periods/{{periodId}}", "host": ["{{baseUrl}}"], "path": ["api", "periods", "{{periodId}}"] }
+          }
+        },
+        {
+          "name": "DELETE /api/periods/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/periods/{{periodId}}", "host": ["{{baseUrl}}"], "path": ["api", "periods", "{{periodId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subjects",
+      "item": [
+        {
+          "name": "GET /api/subjects",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/subjects", "host": ["{{baseUrl}}"], "path": ["api", "subjects"] }
+          }
+        },
+        {
+          "name": "POST /api/subjects",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Programación Web\",\n  \"code\": \"PW-001\",\n  \"totalSessions\": 32\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/subjects", "host": ["{{baseUrl}}"], "path": ["api", "subjects"] }
+          }
+        },
+        {
+          "name": "GET /api/subjects/:id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/subjects/{{subjectId}}", "host": ["{{baseUrl}}"], "path": ["api", "subjects", "{{subjectId}}"] }
+          }
+        },
+        {
+          "name": "PUT /api/subjects/:id",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Programación Web Avanzada\",\n  \"totalSessions\": 36\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/subjects/{{subjectId}}", "host": ["{{baseUrl}}"], "path": ["api", "subjects", "{{subjectId}}"] }
+          }
+        },
+        {
+          "name": "DELETE /api/subjects/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/subjects/{{subjectId}}", "host": ["{{baseUrl}}"], "path": ["api", "subjects", "{{subjectId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Groups",
+      "item": [
+        {
+          "name": "GET /api/groups",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/groups", "host": ["{{baseUrl}}"], "path": ["api", "groups"] }
+          }
+        },
+        {
+          "name": "POST /api/groups",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"ISC-3A\",\n  \"careerId\": {{careerId}},\n  \"periodId\": {{periodId}}\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/groups", "host": ["{{baseUrl}}"], "path": ["api", "groups"] }
+          }
+        },
+        {
+          "name": "GET /api/groups/:id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/groups/{{groupId}}", "host": ["{{baseUrl}}"], "path": ["api", "groups", "{{groupId}}"] }
+          }
+        },
+        {
+          "name": "PUT /api/groups/:id",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"ISC-3B\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/groups/{{groupId}}", "host": ["{{baseUrl}}"], "path": ["api", "groups", "{{groupId}}"] }
+          }
+        },
+        {
+          "name": "DELETE /api/groups/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/groups/{{groupId}}", "host": ["{{baseUrl}}"], "path": ["api", "groups", "{{groupId}}"] }
+          }
+        },
+        {
+          "name": "POST /api/groups/:id/subjects — Asignar materia",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectId\": {{subjectId}},\n  \"teacherId\": 2\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/groups/{{groupId}}/subjects", "host": ["{{baseUrl}}"], "path": ["api", "groups", "{{groupId}}", "subjects"] },
+            "description": "teacherId debe ser un usuario con role=teacher"
+          }
+        },
+        {
+          "name": "DELETE /api/groups/:id/subjects/:gsId",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/groups/{{groupId}}/subjects/{{gsId}}", "host": ["{{baseUrl}}"], "path": ["api", "groups", "{{groupId}}", "subjects", "{{gsId}}"] }
+          }
+        },
+        {
+          "name": "POST /api/groups/:id/students — Inscribir alumno",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": {{studentId}}\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/groups/{{groupId}}/students", "host": ["{{baseUrl}}"], "path": ["api", "groups", "{{groupId}}", "students"] }
+          }
+        },
+        {
+          "name": "DELETE /api/groups/:id/students/:studentId",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/groups/{{groupId}}/students/{{studentId}}", "host": ["{{baseUrl}}"], "path": ["api", "groups", "{{groupId}}", "students", "{{studentId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sessions",
+      "item": [
+        {
+          "name": "GET /api/sessions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions?status=active",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sessions"],
+              "query": [
+                { "key": "status", "value": "active", "description": "active | closed | cancelled" },
+                { "key": "groupSubjectId", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Rol: teacher. Devuelve sesiones propias."
+          }
+        },
+        {
+          "name": "POST /api/sessions — Crear sesión",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groupSubjectId\": {{gsId}},\n  \"date\": \"2025-05-17T09:00:00.000Z\",\n  \"toleranceMinutes\": 15,\n  \"geoEnabled\": false\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/sessions", "host": ["{{baseUrl}}"], "path": ["api", "sessions"] }
+          }
+        },
+        {
+          "name": "GET /api/sessions/:id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/sessions/{{sessionId}}", "host": ["{{baseUrl}}"], "path": ["api", "sessions", "{{sessionId}}"] }
+          }
+        },
+        {
+          "name": "PUT /api/sessions/:id — Editar sesión activa",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"toleranceMinutes\": 20,\n  \"geoEnabled\": true,\n  \"geoRadius\": 150\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/sessions/{{sessionId}}", "host": ["{{baseUrl}}"], "path": ["api", "sessions", "{{sessionId}}"] }
+          }
+        },
+        {
+          "name": "POST /api/sessions/:id/close — Cerrar sesión",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/close", "host": ["{{baseUrl}}"], "path": ["api", "sessions", "{{sessionId}}", "close"] },
+            "description": "Cierra la sesión y dispara verificación de alertas de asistencia."
+          }
+        },
+        {
+          "name": "GET /api/sessions/:id/qr — Obtener token QR",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.token) {",
+                  "  pm.collectionVariables.set('qrToken', res.data.token);",
+                  "  console.log('QR Token guardado:', res.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/qr", "host": ["{{baseUrl}}"], "path": ["api", "sessions", "{{sessionId}}", "qr"] },
+            "description": "Genera JWT con expiración de 5 minutos para el QR. El script guarda el token en {{qrToken}}."
+          }
+        },
+        {
+          "name": "GET /api/sessions/:id/attendances",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/attendances", "host": ["{{baseUrl}}"], "path": ["api", "sessions", "{{sessionId}}", "attendances"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Attendance",
+      "item": [
+        {
+          "name": "POST /api/attendance/qr — Registrar por QR",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qrToken\": \"{{qrToken}}\",\n  \"latitude\": 20.5234,\n  \"longitude\": -100.8128\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/attendance/qr", "host": ["{{baseUrl}}"], "path": ["api", "attendance", "qr"] },
+            "description": "Rol: student. Usa el token generado por GET /sessions/:id/qr"
+          }
+        },
+        {
+          "name": "POST /api/attendance/manual — Registro manual",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": {{sessionId}},\n  \"studentId\": {{studentId}},\n  \"status\": \"present\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/attendance/manual", "host": ["{{baseUrl}}"], "path": ["api", "attendance", "manual"] },
+            "description": "Rol: teacher. status: present | absent | justified"
+          }
+        },
+        {
+          "name": "GET /api/attendance/history — Historial alumno",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/attendance/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attendance", "history"],
+              "query": [{ "key": "groupSubjectId", "value": "", "disabled": true }]
+            },
+            "description": "Rol: student. Retorna historial + tasa de asistencia por materia."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Justifications",
+      "item": [
+        {
+          "name": "GET /api/justifications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/justifications", "host": ["{{baseUrl}}"], "path": ["api", "justifications"] },
+            "description": "Filtrado automático por rol: admin ve todos, teacher ve los de sus alumnos, student ve los propios."
+          }
+        },
+        {
+          "name": "POST /api/justifications — Enviar justificante",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "attendanceId", "value": "{{attendanceId}}", "type": "text" },
+                { "key": "description", "value": "Estuve enfermo con constancia médica.", "type": "text" },
+                { "key": "file", "type": "file", "src": [], "disabled": true, "description": "Opcional: archivo de justificante (PDF, imagen)" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/api/justifications", "host": ["{{baseUrl}}"], "path": ["api", "justifications"] },
+            "description": "Rol: student. attendanceId debe corresponder a una falta (status=absent) del alumno."
+          }
+        },
+        {
+          "name": "GET /api/justifications/:id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/justifications/{{justificationId}}", "host": ["{{baseUrl}}"], "path": ["api", "justifications", "{{justificationId}}"] }
+          }
+        },
+        {
+          "name": "POST /api/justifications/:id/approve",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/justifications/{{justificationId}}/approve", "host": ["{{baseUrl}}"], "path": ["api", "justifications", "{{justificationId}}", "approve"] },
+            "description": "Rol: teacher/admin. Cambia status a approved y asistencia a justified."
+          }
+        },
+        {
+          "name": "POST /api/justifications/:id/reject",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rejectionReason\": \"La constancia médica presentada no es válida.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/justifications/{{justificationId}}/reject", "host": ["{{baseUrl}}"], "path": ["api", "justifications", "{{justificationId}}", "reject"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "GET /api/dashboard/admin",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dashboard/admin", "host": ["{{baseUrl}}"], "path": ["api", "dashboard", "admin"] }
+          }
+        },
+        {
+          "name": "GET /api/dashboard/teacher",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dashboard/teacher", "host": ["{{baseUrl}}"], "path": ["api", "dashboard", "teacher"] }
+          }
+        },
+        {
+          "name": "GET /api/dashboard/student",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dashboard/student", "host": ["{{baseUrl}}"], "path": ["api", "dashboard", "student"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "GET /api/notifications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications"],
+              "query": [{ "key": "unreadOnly", "value": "true", "disabled": true }]
+            }
+          }
+        },
+        {
+          "name": "GET /api/notifications/stream (SSE)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Accept", "value": "text/event-stream" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/notifications/stream", "host": ["{{baseUrl}}"], "path": ["api", "notifications", "stream"] },
+            "description": "Server-Sent Events. Emite { unreadCount } cada 5s y { ping: true } cada 15s. Postman muestra la respuesta en modo streaming."
+          }
+        },
+        {
+          "name": "POST /api/notifications/:id/read",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notifications/{{notificationId}}/read", "host": ["{{baseUrl}}"], "path": ["api", "notifications", "{{notificationId}}", "read"] }
+          }
+        },
+        {
+          "name": "POST /api/notifications/read-all",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notifications/read-all", "host": ["{{baseUrl}}"], "path": ["api", "notifications", "read-all"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "GET /api/reports/excel",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/excel?groupSubjectId={{gsId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "excel"],
+              "query": [{ "key": "groupSubjectId", "value": "{{gsId}}" }]
+            },
+            "description": "Descarga .xlsx con hoja Resumen y hoja Detalle (P/A/J por sesión)."
+          }
+        },
+        {
+          "name": "GET /api/reports/pdf",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/pdf?groupSubjectId={{gsId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "pdf"],
+              "query": [{ "key": "groupSubjectId", "value": "{{gsId}}" }]
+            },
+            "description": "Descarga PDF con tabla de asistencias."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "item": [
+        {
+          "name": "GET /api/settings/thresholds",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/settings/thresholds", "host": ["{{baseUrl}}"], "path": ["api", "settings", "thresholds"] }
+          }
+        },
+        {
+          "name": "PUT /api/settings/thresholds",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"attendanceWarning\": 75,\n  \"attendanceRisk\": 60,\n  \"attendanceCritical\": 50\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/settings/thresholds", "host": ["{{baseUrl}}"], "path": ["api", "settings", "thresholds"] },
+            "description": "Validación: crítico < riesgo < advertencia ≤ 100"
+          }
+        }
+      ]
+    }
+  ]
+}
