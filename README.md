@@ -15,6 +15,7 @@ Sistema web monorepo construido con Next.js 15 que permite a instituciones educa
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Autenticacion](#autenticacion)
 - [Roles y permisos](#roles-y-permisos)
+- [Casos de uso](#casos-de-uso)
 - [API referencia de endpoints](#api-referencia-de-endpoints)
 - [Logica de alertas](#logica-de-alertas)
 - [Reportes](#reportes)
@@ -268,6 +269,208 @@ El middleware y los helpers de autenticacion aceptan ambos mecanismos de forma t
 | `student` | Registra asistencia via QR, consulta historial y envia justificantes |
 
 El middleware redirige al login si la sesion no existe y retorna 403 si el rol no tiene acceso a la ruta solicitada.
+
+---
+
+## Casos de uso
+
+### Actores del sistema
+
+El sistema cuenta con tres actores con responsabilidades diferenciadas:
+
+| Actor | Responsabilidad principal |
+|---|---|
+| Administrador | Configuracion estructural de la institucion |
+| Docente | Gestion operativa de clases y asistencia |
+| Alumno | Registro y seguimiento de su propia asistencia |
+
+---
+
+### CU-01 Configuracion inicial de la institucion
+
+**Actor:** Administrador
+
+**Descripcion:** Antes de que el sistema pueda operar, el administrador configura los elementos estructurales que definen la organizacion academica.
+
+**Flujo principal:**
+1. El administrador crea las carreras academicas de la institucion con su nombre y codigo.
+2. Crea un periodo escolar (por ejemplo, Enero-Junio 2025) y lo marca como activo. El sistema desactiva automaticamente cualquier otro periodo que estuviera activo.
+3. Registra las materias con su nombre, codigo y numero total de sesiones planeadas.
+4. Crea los grupos academicos asignando cada uno a una carrera y al periodo activo.
+5. Dentro de cada grupo asigna las materias indicando que docente imparte cada una.
+6. Inscribe a los alumnos en los grupos correspondientes.
+
+**Resultado:** La institucion queda configurada y los docentes pueden comenzar a abrir sesiones de clase.
+
+---
+
+### CU-02 Apertura de sesion de clase
+
+**Actor:** Docente
+
+**Descripcion:** El docente abre una sesion al inicio de cada clase para habilitar el registro de asistencia.
+
+**Flujo principal:**
+1. El docente accede a la seccion Mis Clases y selecciona el grupo-materia correspondiente.
+2. Crea una nueva sesion indicando la fecha, los minutos de tolerancia y si desea restringir el registro por ubicacion geografica.
+3. El sistema crea la sesion en estado activo y registra automaticamente una falta para cada alumno inscrito en el grupo.
+4. El docente visualiza el codigo QR generado para la sesion en su pantalla.
+
+**Resultado:** La sesion queda activa y el QR esta disponible para que los alumnos registren su asistencia.
+
+---
+
+### CU-03 Registro de asistencia mediante QR
+
+**Actor:** Alumno
+
+**Descripcion:** El alumno escanea el codigo QR proyectado por el docente para registrar su asistencia en tiempo real.
+
+**Flujo principal:**
+1. El alumno accede a la seccion Escanear QR desde su dispositivo movil.
+2. El sistema solicita permiso para usar la camara.
+3. El alumno apunta la camara al codigo QR del docente.
+4. El sistema decodifica el token QR y verifica que la sesion siga activa y que el token no haya expirado (expira a los 5 minutos).
+5. Si el docente habilito restriccion geografica, el sistema valida que el alumno este dentro del radio permitido usando las coordenadas GPS del dispositivo.
+6. El sistema marca la asistencia del alumno como presente y muestra una confirmacion.
+
+**Flujo alternativo — QR expirado:**
+El token QR expira cada 5 minutos. El docente puede solicitar uno nuevo desde la pantalla de la sesion. El diseno del frontend regenera el QR automaticamente cada 4.5 minutos sin intervencion del docente.
+
+**Flujo alternativo — fuera del area:**
+Si el alumno esta fuera del radio configurado, el sistema rechaza el registro e informa la distancia al punto de clase.
+
+**Flujo alternativo — asistencia duplicada:**
+Si el alumno intenta escanear el QR mas de una vez, el sistema responde con un mensaje indicando que su asistencia ya fue registrada.
+
+**Resultado:** La asistencia queda registrada como presente con marca de tiempo y metodo de registro.
+
+---
+
+### CU-04 Registro manual de asistencia
+
+**Actor:** Docente
+
+**Descripcion:** El docente puede modificar el estado de asistencia de cualquier alumno de forma manual, por ejemplo en caso de fallo de camara o red.
+
+**Flujo principal:**
+1. El docente accede al detalle de la sesion activa.
+2. Visualiza la lista de alumnos con su estado actual (presente, ausente, justificado).
+3. Cambia el estado de uno o varios alumnos mediante un control de seleccion.
+4. El sistema actualiza el registro inmediatamente.
+
+**Resultado:** El estado de asistencia queda actualizado segun el criterio del docente.
+
+---
+
+### CU-05 Cierre de sesion y generacion de alertas
+
+**Actor:** Docente
+
+**Descripcion:** Al terminar la clase el docente cierra la sesion, lo que consolida los registros y activa la verificacion de alertas.
+
+**Flujo principal:**
+1. El docente pulsa el boton Cerrar Sesion desde la pantalla de la sesion activa.
+2. El sistema cambia el estado de la sesion a cerrada y registra la hora de cierre.
+3. De forma automatica y no bloqueante el sistema calcula la tasa de asistencia acumulada de cada alumno del grupo en esa materia.
+4. Para cada alumno cuya tasa caiga por debajo de los umbrales configurados, el sistema genera una notificacion del tipo correspondiente (advertencia, riesgo o critico).
+5. Los alumnos con alertas reciben la notificacion la proxima vez que accedan a la plataforma o en tiempo real si tienen el stream SSE activo.
+
+**Resultado:** La sesion queda consolidada y los alumnos en situacion de riesgo son notificados automaticamente.
+
+---
+
+### CU-06 Envio y resolucion de justificante
+
+**Actor:** Alumno / Docente
+
+**Descripcion:** Un alumno que faltó a clase puede solicitar que su ausencia sea justificada adjuntando documentacion de respaldo.
+
+**Flujo — envio (Alumno):**
+1. El alumno accede a su historial de asistencia y localiza la falta que desea justificar.
+2. Selecciona la opcion Justificar, redacta una descripcion y opcionalmente adjunta un archivo (constancia medica, oficio, etc.).
+3. El sistema valida que la asistencia pertenezca al alumno y que este en estado ausente.
+4. Si hay archivo, lo sube a Vercel Blob y almacena la URL.
+5. El justificante queda en estado pendiente de revision.
+
+**Flujo — resolucion (Docente o Administrador):**
+1. El docente accede a la seccion Justificantes y visualiza los pendientes de sus grupos.
+2. Puede descargar o visualizar el archivo adjunto.
+3. Si aprueba, el sistema actualiza la asistencia de ausente a justificado.
+4. Si rechaza, ingresa una razon de rechazo que queda visible para el alumno.
+
+**Resultado:** La asistencia queda en estado justificado o el alumno recibe la razon del rechazo.
+
+---
+
+### CU-07 Consulta de historial de asistencia
+
+**Actor:** Alumno
+
+**Descripcion:** El alumno puede revisar en cualquier momento su situacion de asistencia por materia.
+
+**Flujo principal:**
+1. El alumno accede a la seccion Mi Asistencia.
+2. El sistema muestra una lista de sus materias inscritas con la tasa de asistencia calculada para cada una.
+3. Cada materia muestra una barra de progreso con color segun el umbral: verde si esta en regla, amarillo en advertencia, naranja en riesgo y rojo en estado critico.
+4. Al seleccionar una materia el alumno ve el detalle sesion por sesion con el estado de cada una.
+
+**Resultado:** El alumno conoce su situacion actual y puede tomar acciones preventivas antes de reprobar por inasistencias.
+
+---
+
+### CU-08 Generacion de reportes
+
+**Actor:** Administrador / Docente
+
+**Descripcion:** Se puede exportar un reporte completo de asistencia de cualquier grupo-materia.
+
+**Flujo principal:**
+1. El usuario accede a la seccion Reportes y selecciona el grupo-materia del dropdown.
+2. Elige el formato de exportacion: Excel o PDF.
+3. El sistema genera el archivo y lo descarga automaticamente en el navegador.
+
+**Contenido del reporte Excel:**
+- Hoja Resumen: nombre de materia, grupo, docente y porcentaje promedio de asistencia del grupo.
+- Hoja Detalle: una fila por alumno y una columna por sesion cerrada. Cada celda contiene P (presente), A (ausente) o J (justificado). La ultima columna muestra el porcentaje individual.
+
+**Contenido del reporte PDF:**
+- Cabecera con metadatos del grupo-materia.
+- Tabla con el mismo detalle que la hoja Detalle del Excel.
+
+**Resultado:** El docente o administrador obtiene un archivo descargable listo para entregar o archivar.
+
+---
+
+### CU-09 Configuracion de umbrales de asistencia
+
+**Actor:** Administrador
+
+**Descripcion:** El administrador puede ajustar los porcentajes minimos de asistencia que determinan el nivel de alerta de cada alumno.
+
+**Flujo principal:**
+1. El administrador accede a la seccion Configuracion.
+2. Modifica los tres umbrales: advertencia, riesgo y critico.
+3. El sistema valida que se cumpla la relacion critico < riesgo < advertencia y que ninguno supere 100.
+4. Los nuevos umbrales se aplican a partir de la siguiente sesion que se cierre.
+
+**Resultado:** El criterio de alerta queda ajustado a las politicas de la institucion.
+
+---
+
+### CU-10 Gestion de notificaciones
+
+**Actor:** Cualquier usuario autenticado
+
+**Descripcion:** El sistema mantiene a cada usuario informado sobre eventos relevantes mediante notificaciones en tiempo real.
+
+**Flujo principal:**
+1. El usuario accede a la plataforma y el cliente establece una conexion SSE con `/api/notifications/stream`.
+2. El stream emite el conteo de notificaciones no leidas cada 5 segundos. El badge de la campana en el navbar se actualiza automaticamente.
+3. Al hacer clic en la campana el usuario accede a la lista completa de notificaciones ordenadas por fecha.
+4. Puede marcar notificaciones individuales o todas como leidas.
+
+**Resultado:** El usuario esta informado de su situacion de asistencia sin necesidad de recargar la pagina.
 
 ---
 
