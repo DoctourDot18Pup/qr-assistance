@@ -106,9 +106,9 @@ export default async function TeacherGroupsPage({
         subtitle={`${myGroups.length} grupo${myGroups.length !== 1 ? "s" : ""} asignado${myGroups.length !== 1 ? "s" : ""} en el período activo`}
       />
 
-      <div className="flex-1 px-7 py-6 space-y-[18px]">
+      <div className="flex-1 px-4 md:px-7 py-4 md:py-6 space-y-[18px]">
         {/* Cards de grupos */}
-        <div className="grid grid-cols-2 gap-[14px]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-[14px]">
           {myGroups.map((g) => (
             <div key={g.gsId} className="bg-white border border-[#D8CFB8] rounded-[6px] p-[18px]">
               <div className="flex justify-between items-start mb-3">
@@ -160,6 +160,7 @@ export default async function TeacherGroupsPage({
                 No hay estudiantes inscritos en este grupo.
               </div>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-[#D8CFB8] text-[11px] font-semibold uppercase tracking-wide text-[#6B6457]">
@@ -196,6 +197,7 @@ export default async function TeacherGroupsPage({
                   })}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         )}

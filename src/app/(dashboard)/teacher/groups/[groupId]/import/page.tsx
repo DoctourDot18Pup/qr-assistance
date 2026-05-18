@@ -44,7 +44,7 @@ export default async function TeacherGroupImportPage({
           </Link>
         }
       />
-      <div className="flex-1 px-7 py-6">
+      <div className="flex-1 px-4 md:px-7 py-4 md:py-6">
         <ImportGroupStudentsClient groupId={groupId} />
       </div>
     </div>

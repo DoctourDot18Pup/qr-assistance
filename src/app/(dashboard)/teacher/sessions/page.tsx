@@ -115,13 +115,14 @@ export default async function TeacherSessionsPage({
         actions={<NewSessionButton groups={myGroups} defaultGsId={defaultGsId} />}
       />
 
-      <div className="flex-1 px-7 py-6">
+      <div className="flex-1 px-4 md:px-7 py-4 md:py-6">
         <div className="bg-white border border-[#D8CFB8] rounded-[6px]">
           {sessionList.length === 0 ? (
             <div className="py-14 text-center text-[#6B6457] text-sm">
               Aún no has impartido sesiones. Crea una para comenzar.
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-[#D8CFB8] text-[11px] font-semibold uppercase tracking-wide text-[#6B6457]">
@@ -163,6 +164,7 @@ export default async function TeacherSessionsPage({
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>

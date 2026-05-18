@@ -105,7 +105,7 @@ export default async function AdminReportsPage({
         subtitle="Vista global de todos los grupos y materias"
       />
 
-      <div className="flex-1 px-7 py-6 space-y-[18px]">
+      <div className="flex-1 px-4 md:px-7 py-4 md:py-6 space-y-[18px]">
         {/* Filtros */}
         <div className="bg-white border border-[#D8CFB8] rounded-[6px] p-[18px]">
           <div className="text-sm font-semibold text-[#0A0A0A] mb-4">Filtros</div>

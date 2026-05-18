@@ -98,9 +98,9 @@ export default async function StudentHomePage() {
         }
       />
 
-      <div className="flex-1 px-7 py-6 space-y-[18px]">
+      <div className="flex-1 px-4 md:px-7 py-4 md:py-6 space-y-[18px]">
         {/* KPIs */}
-        <div className="grid grid-cols-3 gap-[14px]">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-[14px]">
           {[
             { icon: BookOpen,   label: "Materias activas",     value: mySubjects.length,           hint: "Período actual" },
             { icon: TrendingUp, label: "Asistencia promedio",  value: avgAttendance !== null ? `${avgAttendance}%` : "—", hint: "Sesiones cerradas" },

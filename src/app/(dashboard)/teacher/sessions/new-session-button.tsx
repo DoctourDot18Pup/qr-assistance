@@ -39,7 +39,7 @@ export function NewSessionButton({ groups, defaultGsId }: Props) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
           <div className="relative bg-white border border-[#D8CFB8] rounded-[6px] w-full max-w-sm">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#D8CFB8]">

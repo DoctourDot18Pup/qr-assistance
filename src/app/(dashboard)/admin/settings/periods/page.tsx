@@ -26,7 +26,7 @@ export default async function PeriodsPage() {
         actions={<NewPeriodButton />}
       />
 
-      <div className="flex-1 px-7 py-6">
+      <div className="flex-1 px-4 md:px-7 py-4 md:py-6">
         <div className="bg-white border border-[#D8CFB8] rounded-[6px]">
           {allPeriods.length === 0 ? (
             <div className="py-14 text-center text-[#6B6457] text-sm">

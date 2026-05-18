@@ -68,7 +68,7 @@ export default async function TeacherJustificationsPage({
         subtitle={`${pending} pendiente${pending !== 1 ? "s" : ""} de revisión`}
       />
 
-      <div className="flex-1 px-7 py-6">
+      <div className="flex-1 px-4 md:px-7 py-4 md:py-6">
         {/* Filtros */}
         <form method="GET" className="flex gap-3 mb-4">
           {[

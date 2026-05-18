@@ -85,7 +85,7 @@ export default async function NotificationsPage() {
         }
       />
 
-      <div className="flex-1 px-7 py-6">
+      <div className="flex-1 px-4 md:px-7 py-4 md:py-6">
         {notifications.length === 0 ? (
           <div className="bg-white border border-[#D8CFB8] rounded-[6px] py-14 text-center">
             <Bell size={28} className="text-[#D8CFB8] mx-auto mb-3" />

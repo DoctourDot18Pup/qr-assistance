@@ -47,9 +47,9 @@ function formatTime(iso: string | null) {
 
 export function ClosedSession({ roster, stats }: { roster: RosterRow[]; stats: Stats }) {
   return (
-    <div className="flex-1 px-7 py-6 space-y-[18px]">
+    <div className="flex-1 px-4 md:px-7 py-4 md:py-6 space-y-[18px]">
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-[14px]">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-[14px]">
         {[
           { label: "Total alumnos",  value: stats.total,     color: "text-[#0A0A0A]" },
           { label: "Presentes",      value: stats.present,   color: "text-[#2F6A4B]" },
@@ -70,6 +70,7 @@ export function ClosedSession({ roster, stats }: { roster: RosterRow[]; stats: S
           <QrBadge tone={attendanceTone(stats.pct)}>{stats.pct}% asistencia</QrBadge>
         </div>
 
+        <div className="overflow-x-auto">
         <table className="w-full text-[13px]">
           <thead>
             <tr className="border-b border-[#D8CFB8] text-[11px] font-semibold uppercase tracking-wide text-[#6B6457]">
@@ -112,12 +113,13 @@ export function ClosedSession({ roster, stats }: { roster: RosterRow[]; stats: S
             ))}
           </tbody>
         </table>
+        </div>
 
-        <div className="flex items-center justify-between px-[18px] py-3 border-t border-[#D8CFB8]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-[18px] py-3 border-t border-[#D8CFB8]">
           <span className="text-xs text-[#6B6457]">
             {stats.present + stats.justified} de {stats.total} asistieron
           </span>
-          <div className="flex items-center gap-4 text-[11px] text-[#6B6457]">
+          <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#6B6457]">
             <span className="flex items-center gap-1"><Check size={11} className="text-[#2F6A4B]" /> Presente: QR o manual</span>
             <span className="flex items-center gap-1"><FileText size={11} className="text-[#B8965A]" /> Justificado: falta aceptada</span>
             <span className="flex items-center gap-1"><X size={11} className="text-[#7A1A1A]" /> Ausente: no registró</span>

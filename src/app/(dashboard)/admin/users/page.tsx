@@ -84,10 +84,10 @@ export default async function UsersPage({
         }
       />
 
-      <div className="flex-1 px-7 py-6">
+      <div className="flex-1 px-4 md:px-7 py-4 md:py-6">
         <div className="bg-white border border-[#D8CFB8] rounded-[6px]">
           {/* Filtros */}
-          <form method="GET" className="flex items-center gap-3 px-[18px] py-4 border-b border-[#D8CFB8]">
+          <form method="GET" className="flex flex-wrap items-center gap-3 px-[18px] py-4 border-b border-[#D8CFB8]">
             <div className="relative flex-1 max-w-xs">
               <input
                 name="search"
@@ -120,6 +120,7 @@ export default async function UsersPage({
               No se encontraron usuarios con esos filtros.
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-[#D8CFB8] text-[11px] font-semibold uppercase tracking-wide text-[#6B6457]">
@@ -151,6 +152,7 @@ export default async function UsersPage({
                 ))}
               </tbody>
             </table>
+            </div>
           )}
 
           <div className="px-[18px] py-3 border-t border-[#D8CFB8] text-xs text-[#6B6457]">

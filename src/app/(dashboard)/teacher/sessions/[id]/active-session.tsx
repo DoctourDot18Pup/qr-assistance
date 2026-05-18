@@ -109,7 +109,7 @@ export function ActiveSession({ sessionId, groupName, subjectName, startedAt, in
   const isClosed = sessionStatus === "closed";
 
   return (
-    <div className="grid gap-[18px] flex-1 px-7 py-6" style={{ gridTemplateColumns: "1.1fr 1fr" }}>
+    <div className="flex flex-col md:grid gap-[18px] flex-1 px-4 md:px-7 py-4 md:py-6" style={{ gridTemplateColumns: "1.1fr 1fr" }}>
       {/* ── Panel QR ─────────────────────────────────────────────── */}
       <div className="bg-white border border-[#D8CFB8] rounded-[6px] p-6 flex flex-col">
         <div className="text-[13px] font-semibold text-[#0A0A0A] mb-4">Código QR de asistencia</div>

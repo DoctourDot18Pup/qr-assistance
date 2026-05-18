@@ -112,9 +112,9 @@ export default async function TeacherHomePage() {
         }
       />
 
-      <div className="flex-1 px-7 py-6 space-y-[18px]">
+      <div className="flex-1 px-4 md:px-7 py-4 md:py-6 space-y-[18px]">
         {/* KPIs */}
-        <div className="grid grid-cols-3 gap-[14px]">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-[14px]">
           {[
             { icon: LayoutGrid,   label: "Grupos asignados",  value: kpis.groups,        hint: "Período activo" },
             { icon: CalendarCheck, label: "Sesiones hoy",     value: kpis.sessionsToday, hint: kpis.nextHour ? `Próxima a las ${kpis.nextHour}` : "Sin sesiones activas" },
@@ -147,7 +147,7 @@ export default async function TeacherHomePage() {
               No tienes grupos asignados en el período activo.
             </div>
           ) : (
-            <div className="grid grid-cols-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2">
               {myGroups.slice(0, 4).map((g, i) => {
                 const studentCount = studentsPerGroup?.[g.groupId] ?? 0;
                 const isLast = i >= myGroups.slice(0, 4).length - 2;

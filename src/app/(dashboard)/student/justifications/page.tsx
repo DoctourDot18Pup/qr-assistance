@@ -73,7 +73,7 @@ export default async function StudentJustificationsPage() {
         subtitle={`${pending} falta${pending !== 1 ? "s" : ""} pendiente${pending !== 1 ? "s" : ""} de justificar`}
       />
 
-      <div className="flex-1 px-7 py-6">
+      <div className="flex-1 px-4 md:px-7 py-4 md:py-6">
         {absentRows.length === 0 ? (
           <div className="bg-white border border-[#D8CFB8] rounded-[6px] py-14 text-center text-[#6B6457] text-sm">
             No tienes faltas registradas. ¡Excelente asistencia!

@@ -14,7 +14,7 @@ export default async function StudentScanPage() {
         subtitle="Registra tu asistencia escaneando el código de tu docente"
       />
 
-      <div className="flex-1 px-7 py-6 flex flex-col items-center">
+      <div className="flex-1 px-4 md:px-7 py-4 md:py-6 flex flex-col items-center">
         <div className="bg-white border border-[#D8CFB8] rounded-[6px] w-full max-w-md">
           <div className="px-[18px] py-4 border-b border-[#D8CFB8]">
             <span className="text-sm font-semibold text-[#0A0A0A]">Cámara</span>

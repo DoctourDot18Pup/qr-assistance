@@ -61,7 +61,7 @@ export default async function GroupsPage({
         actions={<NewGroupButton careers={careerList} periods={periodList} />}
       />
 
-      <div className="flex-1 px-7 py-6">
+      <div className="flex-1 px-4 md:px-7 py-4 md:py-6">
         <div className="bg-white border border-[#D8CFB8] rounded-[6px]">
           {/* Filtros */}
           <form method="GET" className="flex items-center gap-3 px-[18px] py-4 border-b border-[#D8CFB8]">

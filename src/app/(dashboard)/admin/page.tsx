@@ -159,9 +159,9 @@ export default async function AdminHomePage() {
         subtitle="Vista general del sistema"
       />
 
-      <div className="flex-1 px-7 py-6 space-y-[18px]">
+      <div className="flex-1 px-4 md:px-7 py-4 md:py-6 space-y-[18px]">
         {/* KPIs */}
-        <div className="grid grid-cols-4 gap-[14px]">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-[14px]">
           <KpiCard
             icon={Users}
             label="Usuarios totales"
@@ -210,6 +210,7 @@ export default async function AdminHomePage() {
               No hay sesiones programadas para hoy.
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-[#D8CFB8] text-[11px] font-semibold uppercase tracking-wide text-[#6B6457]">
@@ -239,6 +240,7 @@ export default async function AdminHomePage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>

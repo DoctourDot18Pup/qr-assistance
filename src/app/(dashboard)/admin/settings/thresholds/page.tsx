@@ -23,7 +23,7 @@ export default async function ThresholdsPage() {
         title="Umbrales de alerta"
         subtitle="Porcentajes de asistencia que disparan alertas en todos los grupos"
       />
-      <div className="flex-1 px-7 py-6">
+      <div className="flex-1 px-4 md:px-7 py-4 md:py-6">
         <ThresholdsForm initial={thresholds} />
       </div>
     </div>
