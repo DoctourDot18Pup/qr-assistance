@@ -38,9 +38,14 @@ export async function submitJustification(fd: FormData): Promise<{ ok: boolean; 
 
   let filePath: string | undefined;
   if (file && file.size > 0 && process.env.BLOB_READ_WRITE_TOKEN) {
-    const { put } = await import("@vercel/blob");
-    const blob = await put(`justifications/${Date.now()}-${file.name}`, file, { access: "public" });
-    filePath = blob.url;
+    try {
+      const { put } = await import("@vercel/blob");
+      const blob = await put(`justifications/${Date.now()}-${file.name}`, file, { access: "private" });
+      filePath = blob.url;
+    } catch (e) {
+      console.error("Blob upload error:", e);
+      return { ok: false, message: "No se pudo subir el archivo. Intenta sin adjunto o contacta al administrador." };
+    }
   }
 
   await db.insert(justifications).values({ attendanceId, description, filePath });

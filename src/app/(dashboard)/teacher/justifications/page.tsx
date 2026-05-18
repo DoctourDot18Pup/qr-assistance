@@ -127,7 +127,7 @@ export default async function TeacherJustificationsPage({
                     <td className="px-4 py-3">
                       {j.filePath ? (
                         <a
-                          href={j.filePath}
+                          href={`/api/blob-download?url=${encodeURIComponent(j.filePath)}`}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex items-center gap-1 text-[#1B3A2D] underline text-xs"

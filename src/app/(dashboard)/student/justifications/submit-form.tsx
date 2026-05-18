@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { FileText, ChevronDown, ChevronUp } from "lucide-react";
+import { FileText, ChevronDown, ChevronUp, X } from "lucide-react";
 import { submitJustification } from "./actions";
 
 interface Props {
@@ -13,7 +13,18 @@ export function SubmitJustificationForm({ attendanceId }: Props) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [preview, setPreview] = useState<{ name: string; url: string | null } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) { setPreview(null); return; }
+    const isImage = file.type.startsWith("image/");
+    setPreview({
+      name: file.name,
+      url: isImage ? URL.createObjectURL(file) : null,
+    });
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -24,6 +35,7 @@ export function SubmitJustificationForm({ attendanceId }: Props) {
       if (!res.ok) { setError(res.message ?? "Error al enviar."); return; }
       setSuccess(true);
       setOpen(false);
+      setPreview(null);
       formRef.current?.reset();
     });
   }
@@ -68,8 +80,31 @@ export function SubmitJustificationForm({ attendanceId }: Props) {
               name="file"
               type="file"
               accept=".pdf,.jpg,.jpeg,.png"
+              onChange={handleFileChange}
               className="text-xs text-[#6B6457] file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-[#1B3A2D] file:text-white hover:file:bg-[#163023]"
             />
+            {preview && (
+              <div className="mt-2 flex items-start gap-2 p-2 bg-white border border-[#D8CFB8] rounded">
+                {preview.url ? (
+                  <img src={preview.url} alt="Vista previa" className="w-16 h-16 object-cover rounded border border-[#D8CFB8]" />
+                ) : (
+                  <div className="w-16 h-16 flex items-center justify-center bg-[#F5F1EA] rounded border border-[#D8CFB8]">
+                    <FileText size={24} className="text-[#6B6457]" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-semibold text-[#0A0A0A] truncate">{preview.name}</p>
+                  <p className="text-[10px] text-[#6B6457] mt-0.5">Listo para enviar</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setPreview(null); if (formRef.current) { const input = formRef.current.querySelector<HTMLInputElement>('input[type="file"]'); if (input) input.value = ""; } }}
+                  className="text-[#6B6457] hover:text-[#0A0A0A]"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            )}
           </div>
 
           {error && <p className="text-xs text-[#7A1A1A] font-semibold">{error}</p>}
