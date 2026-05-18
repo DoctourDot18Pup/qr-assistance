@@ -628,13 +628,6 @@ Los umbrales se modifican desde `PUT /api/settings/thresholds` y deben cumplir l
 
 ## Reportes
 
-### Excel
-
-El archivo generado contiene dos hojas:
-
-- **Resumen**: materia, grupo, docente y porcentaje de asistencia promedio del grupo.
-- **Detalle**: una fila por alumno con una columna por sesion. Los valores son `P` (presente), `A` (ausente) o `J` (justificado). La ultima columna muestra el porcentaje individual de cada alumno.
-
 ### PDF
 
 Tabla generada con `jspdf-autotable` en orientacion automatica segun el numero de sesiones. Incluye cabecera con nombre de materia, grupo, docente y promedio general del grupo.
