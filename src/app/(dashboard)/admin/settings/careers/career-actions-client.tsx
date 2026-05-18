@@ -144,7 +144,7 @@ export function ToggleCareerButton({ id, active }: { id: number; active: boolean
   return (
     <button
       disabled={pending}
-      onClick={() => startTransition(() => toggleCareerActive(id, !active))}
+      onClick={() => startTransition(async () => { await toggleCareerActive(id, !active); })}
       title={active ? "Desactivar" : "Activar"}
       className="h-7 px-3 text-xs font-semibold border border-[#D8CFB8] text-[#6B6457] rounded hover:bg-[#F5F1EA] transition-colors flex items-center gap-1 disabled:opacity-50"
     >
