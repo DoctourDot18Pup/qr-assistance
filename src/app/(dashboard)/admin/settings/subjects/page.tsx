@@ -30,12 +30,13 @@ export default async function SubjectsPage() {
               No hay materias registradas. Crea la primera.
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-[#D8CFB8] text-[11px] font-semibold uppercase tracking-wide text-[#6B6457]">
-                  <th className="text-left px-[18px] py-3">Clave</th>
-                  <th className="text-left px-4 py-3">Nombre</th>
-                  <th className="text-right px-4 py-3">Sesiones / período</th>
+                  <th className="text-left px-[18px] py-3 whitespace-nowrap">Clave</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Nombre</th>
+                  <th className="text-right px-4 py-3 whitespace-nowrap">Sesiones / período</th>
                   <th className="px-4 py-3 w-28" />
                 </tr>
               </thead>
@@ -58,6 +59,7 @@ export default async function SubjectsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>

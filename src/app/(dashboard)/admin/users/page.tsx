@@ -124,11 +124,11 @@ export default async function UsersPage({
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-[#D8CFB8] text-[11px] font-semibold uppercase tracking-wide text-[#6B6457]">
-                  <th className="text-left px-[18px] py-3">Nombre</th>
-                  <th className="text-left px-4 py-3">Correo</th>
-                  <th className="text-left px-4 py-3">Matrícula</th>
-                  <th className="text-left px-4 py-3">Rol</th>
-                  <th className="text-left px-4 py-3">Alta</th>
+                  <th className="text-left px-[18px] py-3 whitespace-nowrap">Nombre</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Correo</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Matrícula</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Rol</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Alta</th>
                 </tr>
               </thead>
               <tbody>

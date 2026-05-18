@@ -83,14 +83,15 @@ export default async function StudentJustificationsPage() {
             <div className="px-[18px] py-4 border-b border-[#D8CFB8]">
               <span className="text-sm font-semibold text-[#0A0A0A]">Registro de faltas</span>
             </div>
+            <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-[#D8CFB8] text-[11px] font-semibold uppercase tracking-wide text-[#6B6457]">
-                  <th className="text-left px-[18px] py-3">Materia</th>
-                  <th className="text-left px-4 py-3">Fecha de sesión</th>
-                  <th className="text-left px-4 py-3">Estado</th>
-                  <th className="text-left px-4 py-3">Justificante</th>
-                  <th className="px-4 py-3 w-40">Acción</th>
+                  <th className="text-left px-[18px] py-3 whitespace-nowrap">Materia</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Fecha de sesión</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Estado</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Justificante</th>
+                  <th className="px-4 py-3 w-40 whitespace-nowrap">Acción</th>
                 </tr>
               </thead>
               <tbody>
@@ -134,6 +135,7 @@ export default async function StudentJustificationsPage() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>

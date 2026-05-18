@@ -33,13 +33,14 @@ export default async function PeriodsPage() {
               No hay períodos registrados. Crea el primero.
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-[#D8CFB8] text-[11px] font-semibold uppercase tracking-wide text-[#6B6457]">
-                  <th className="text-left px-[18px] py-3">Nombre</th>
-                  <th className="text-left px-4 py-3">Inicio</th>
-                  <th className="text-left px-4 py-3">Fin</th>
-                  <th className="text-left px-4 py-3">Estado</th>
+                  <th className="text-left px-[18px] py-3 whitespace-nowrap">Nombre</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Inicio</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Fin</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Estado</th>
                   <th className="px-4 py-3 w-48" />
                 </tr>
               </thead>
@@ -65,6 +66,7 @@ export default async function PeriodsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>

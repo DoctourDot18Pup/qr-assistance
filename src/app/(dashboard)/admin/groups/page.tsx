@@ -64,7 +64,7 @@ export default async function GroupsPage({
       <div className="flex-1 px-4 md:px-7 py-4 md:py-6">
         <div className="bg-white border border-[#D8CFB8] rounded-[6px]">
           {/* Filtros */}
-          <form method="GET" className="flex items-center gap-3 px-[18px] py-4 border-b border-[#D8CFB8]">
+          <form method="GET" className="flex flex-wrap items-center gap-3 px-[18px] py-4 border-b border-[#D8CFB8]">
             <input
               name="search"
               defaultValue={search}
@@ -104,12 +104,13 @@ export default async function GroupsPage({
               No se encontraron grupos con esos filtros.
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-[#D8CFB8] text-[11px] font-semibold uppercase tracking-wide text-[#6B6457]">
-                  <th className="text-left px-[18px] py-3">Grupo</th>
-                  <th className="text-left px-4 py-3">Carrera</th>
-                  <th className="text-left px-4 py-3">Período</th>
+                  <th className="text-left px-[18px] py-3 whitespace-nowrap">Grupo</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Carrera</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Período</th>
                 </tr>
               </thead>
               <tbody>
@@ -124,6 +125,7 @@ export default async function GroupsPage({
                 ))}
               </tbody>
             </table>
+            </div>
           )}
 
           <div className="px-[18px] py-3 border-t border-[#D8CFB8] text-xs text-[#6B6457]">

@@ -78,16 +78,17 @@ export default async function StudentSubjectsPage() {
           </div>
         ) : (
           <div className="bg-white border border-[#D8CFB8] rounded-[6px]">
+            <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-[#D8CFB8] text-[11px] font-semibold uppercase tracking-wide text-[#6B6457]">
-                  <th className="text-left px-[18px] py-3">Materia</th>
-                  <th className="text-left px-4 py-3">Docente</th>
-                  <th className="text-left px-4 py-3">Período</th>
-                  <th className="text-right px-4 py-3">Presentes</th>
-                  <th className="text-right px-4 py-3">Ausentes</th>
-                  <th className="text-right px-4 py-3">Justificados</th>
-                  <th className="text-left px-4 py-3">Asistencia</th>
+                  <th className="text-left px-[18px] py-3 whitespace-nowrap">Materia</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Docente</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Período</th>
+                  <th className="text-right px-4 py-3 whitespace-nowrap">Presentes</th>
+                  <th className="text-right px-4 py-3 whitespace-nowrap">Ausentes</th>
+                  <th className="text-right px-4 py-3 whitespace-nowrap">Justificados</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Asistencia</th>
                 </tr>
               </thead>
               <tbody>
@@ -115,6 +116,7 @@ export default async function StudentSubjectsPage() {
                 })}
               </tbody>
             </table>
+            </div>
             <div className="px-[18px] py-3 border-t border-[#D8CFB8] text-xs text-[#6B6457]">
               Solo se contabilizan sesiones cerradas por el docente.
             </div>

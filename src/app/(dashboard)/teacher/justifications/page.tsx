@@ -100,16 +100,17 @@ export default async function TeacherJustificationsPage({
               No hay justificantes {statusFilter === "pending" ? "pendientes" : "en esta categoría"}.
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-[#D8CFB8] text-[11px] font-semibold uppercase tracking-wide text-[#6B6457]">
-                  <th className="text-left px-[18px] py-3">Estudiante</th>
-                  <th className="text-left px-4 py-3">Materia</th>
-                  <th className="text-left px-4 py-3">Sesión</th>
-                  <th className="text-left px-4 py-3">Motivo</th>
-                  <th className="text-left px-4 py-3">Adjunto</th>
-                  <th className="text-left px-4 py-3">Estado</th>
-                  <th className="px-4 py-3 w-36">Acciones</th>
+                  <th className="text-left px-[18px] py-3 whitespace-nowrap">Estudiante</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Materia</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Sesión</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Motivo</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Adjunto</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Estado</th>
+                  <th className="px-4 py-3 w-36 whitespace-nowrap">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -160,6 +161,7 @@ export default async function TeacherJustificationsPage({
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>

@@ -165,15 +165,16 @@ export default async function TeacherReportsPage({
               </div>
             ) : (
               <>
+                <div className="overflow-x-auto">
                 <table className="w-full text-[13px]">
                   <thead>
                     <tr className="border-b border-[#D8CFB8] text-[11px] font-semibold uppercase tracking-wide text-[#6B6457]">
-                      <th className="text-left px-[18px] py-3">Estudiante</th>
-                      <th className="text-left px-4 py-3">Matrícula</th>
-                      <th className="text-right px-4 py-3">Presentes</th>
-                      <th className="text-right px-4 py-3">Ausentes</th>
-                      <th className="text-right px-4 py-3">Justificados</th>
-                      <th className="text-left px-4 py-3">Asistencia</th>
+                      <th className="text-left px-[18px] py-3 whitespace-nowrap">Estudiante</th>
+                      <th className="text-left px-4 py-3 whitespace-nowrap">Matrícula</th>
+                      <th className="text-right px-4 py-3 whitespace-nowrap">Presentes</th>
+                      <th className="text-right px-4 py-3 whitespace-nowrap">Ausentes</th>
+                      <th className="text-right px-4 py-3 whitespace-nowrap">Justificados</th>
+                      <th className="text-left px-4 py-3 whitespace-nowrap">Asistencia</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -193,6 +194,7 @@ export default async function TeacherReportsPage({
                     ))}
                   </tbody>
                 </table>
+                </div>
                 <div className="flex justify-between items-center px-[18px] py-3 border-t border-[#D8CFB8] text-xs">
                   <span className="text-[#6B6457]">Promedio del grupo</span>
                   <span className="font-semibold text-[#0A0A0A]">

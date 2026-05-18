@@ -164,12 +164,12 @@ export default async function TeacherGroupsPage({
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-[#D8CFB8] text-[11px] font-semibold uppercase tracking-wide text-[#6B6457]">
-                    <th className="text-left px-[18px] py-3">Matrícula</th>
-                    <th className="text-left px-4 py-3">Estudiante</th>
-                    <th className="text-left px-4 py-3">Presentes</th>
-                    <th className="text-left px-4 py-3">Ausentes</th>
-                    <th className="text-left px-4 py-3">Justificadas</th>
-                    <th className="text-left px-4 py-3">Asistencia</th>
+                    <th className="text-left px-[18px] py-3 whitespace-nowrap">Matrícula</th>
+                    <th className="text-left px-4 py-3 whitespace-nowrap">Estudiante</th>
+                    <th className="text-left px-4 py-3 whitespace-nowrap">Presentes</th>
+                    <th className="text-left px-4 py-3 whitespace-nowrap">Ausentes</th>
+                    <th className="text-left px-4 py-3 whitespace-nowrap">Justificadas</th>
+                    <th className="text-left px-4 py-3 whitespace-nowrap">Asistencia</th>
                   </tr>
                 </thead>
                 <tbody>
