@@ -28,10 +28,8 @@ export async function setActivePeriod(periodId: number): Promise<{ ok: boolean; 
   const session = await auth();
   if (!session?.user) return { ok: false, message: "No autenticado." };
 
-  await db.transaction(async (tx) => {
-    await tx.update(periods).set({ active: false });
-    await tx.update(periods).set({ active: true }).where(eq(periods.id, periodId));
-  });
+  await db.update(periods).set({ active: false });
+  await db.update(periods).set({ active: true }).where(eq(periods.id, periodId));
 
   revalidatePath("/admin/settings/periods");
   return { ok: true };

@@ -23,6 +23,11 @@ export async function GET(req: Request) {
     const landscape = sessions.length > 8;
     const doc = new jsPDF({ orientation: landscape ? 'landscape' : 'portrait', unit: 'mm', format: 'letter' });
     const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+
+    // Fondo blanco explícito para evitar sombra gris del visor
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, pageW, pageH, 'F');
 
     // ── Header band ──────────────────────────────────────────────────
     doc.setFillColor(...GREEN);
@@ -123,7 +128,7 @@ export async function GET(req: Request) {
     return new Response(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="asistencia-${gs.group.name}-${gs.subject.name}.pdf"`,
+        'Content-Disposition': `inline; filename="asistencia-${gs.group.name}-${gs.subject.name}.pdf"`,
       },
     });
   } catch (e) {

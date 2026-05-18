@@ -1,17 +1,14 @@
-import { Suspense } from "react";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { ilike, or, eq, and } from "drizzle-orm";
+import { ilike, or, eq, and, count } from "drizzle-orm";
 import Link from "next/link";
 import { Header } from "@/components/shell/header";
 import { QrBadge } from "@/components/ui/qr-badge";
 import { NewUserButton } from "./new-user-button";
 
-// ─── types ───────────────────────────────────────────────────────────────────
+const PAGE_SIZE = 25;
 
 type Role = "admin" | "teacher" | "student";
-
-// ─── helpers ─────────────────────────────────────────────────────────────────
 
 function roleBadge(role: string) {
   if (role === "admin")   return <QrBadge tone="dark">Admin</QrBadge>;
@@ -19,11 +16,8 @@ function roleBadge(role: string) {
   return <QrBadge tone="gold">Estudiante</QrBadge>;
 }
 
-// ─── data ────────────────────────────────────────────────────────────────────
-
-async function getUsers(search?: string, role?: string) {
+function buildWhere(search?: string, role?: string) {
   const conditions = [];
-
   if (search) {
     conditions.push(
       or(
@@ -33,12 +27,21 @@ async function getUsers(search?: string, role?: string) {
       )
     );
   }
-
   if (role && role !== "all") {
     conditions.push(eq(users.role, role));
   }
+  return conditions.length > 0 ? and(...conditions) : undefined;
+}
 
-  return db
+async function getUsers(search: string, role: string, page: number) {
+  const where = buildWhere(search || undefined, role);
+
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(users)
+    .where(where);
+
+  const list = await db
     .select({
       id:               users.id,
       name:             users.name,
@@ -48,29 +51,42 @@ async function getUsers(search?: string, role?: string) {
       createdAt:        users.createdAt,
     })
     .from(users)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .where(where)
     .orderBy(users.createdAt)
-    .limit(100);
+    .limit(PAGE_SIZE)
+    .offset((page - 1) * PAGE_SIZE);
+
+  return { list, total: Number(total) };
 }
 
-// ─── page ────────────────────────────────────────────────────────────────────
+function pageLink(search: string, role: string, page: number) {
+  const p = new URLSearchParams();
+  if (search) p.set("search", search);
+  if (role && role !== "all") p.set("role", role);
+  if (page > 1) p.set("page", String(page));
+  return `/admin/users?${p.toString()}`;
+}
 
 export default async function UsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; role?: string }>;
+  searchParams: Promise<{ search?: string; role?: string; page?: string }>;
 }) {
   const params = await searchParams;
   const search = params.search ?? "";
-  const role = params.role ?? "all";
+  const role   = params.role   ?? "all";
+  const page   = Math.max(1, Number(params.page ?? 1));
 
-  const list = await getUsers(search || undefined, role);
+  const { list, total } = await getUsers(search, role, page);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const from = (page - 1) * PAGE_SIZE + 1;
+  const to   = Math.min(page * PAGE_SIZE, total);
 
   return (
     <div className="flex flex-col flex-1">
       <Header
         title="Gestión de usuarios"
-        subtitle={`${list.length} usuario${list.length !== 1 ? "s" : ""} encontrado${list.length !== 1 ? "s" : ""}`}
+        subtitle={`${total} usuario${total !== 1 ? "s" : ""} registrado${total !== 1 ? "s" : ""}`}
         actions={
           <>
             <Link
@@ -121,42 +137,83 @@ export default async function UsersPage({
             </div>
           ) : (
             <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
-              <thead>
-                <tr className="border-b border-[#D8CFB8] text-[11px] font-semibold uppercase tracking-wide text-[#6B6457]">
-                  <th className="text-left px-[18px] py-3 whitespace-nowrap">Nombre</th>
-                  <th className="text-left px-4 py-3 whitespace-nowrap">Correo</th>
-                  <th className="text-left px-4 py-3 whitespace-nowrap">Matrícula</th>
-                  <th className="text-left px-4 py-3 whitespace-nowrap">Rol</th>
-                  <th className="text-left px-4 py-3 whitespace-nowrap">Alta</th>
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((u, i) => (
-                  <tr
-                    key={u.id}
-                    className={i % 2 === 1 ? "bg-[#F5F1EA]" : ""}
-                  >
-                    <td className="px-[18px] py-3 font-semibold text-[#0A0A0A]">
-                      {u.name}
-                    </td>
-                    <td className="px-4 py-3 text-[#6B6457]">{u.email}</td>
-                    <td className="px-4 py-3 tabular text-[#6B6457]">
-                      {u.enrollmentNumber ?? "—"}
-                    </td>
-                    <td className="px-4 py-3">{roleBadge(u.role)}</td>
-                    <td className="px-4 py-3 tabular text-[#6B6457] text-xs">
-                      {u.createdAt?.toLocaleDateString("es-MX") ?? "—"}
-                    </td>
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-[#D8CFB8] text-[11px] font-semibold uppercase tracking-wide text-[#6B6457]">
+                    <th className="text-left px-[18px] py-3 whitespace-nowrap">Nombre</th>
+                    <th className="text-left px-4 py-3 whitespace-nowrap">Correo</th>
+                    <th className="text-left px-4 py-3 whitespace-nowrap">Matrícula</th>
+                    <th className="text-left px-4 py-3 whitespace-nowrap">Rol</th>
+                    <th className="text-left px-4 py-3 whitespace-nowrap">Alta</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {list.map((u, i) => (
+                    <tr key={u.id} className={i % 2 === 1 ? "bg-[#F5F1EA]" : ""}>
+                      <td className="px-[18px] py-3 font-semibold text-[#0A0A0A]">{u.name}</td>
+                      <td className="px-4 py-3 text-[#6B6457]">{u.email}</td>
+                      <td className="px-4 py-3 tabular text-[#6B6457]">{u.enrollmentNumber ?? "—"}</td>
+                      <td className="px-4 py-3">{roleBadge(u.role)}</td>
+                      <td className="px-4 py-3 tabular text-[#6B6457] text-xs">
+                        {u.createdAt?.toLocaleDateString("es-MX") ?? "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
-          <div className="px-[18px] py-3 border-t border-[#D8CFB8] text-xs text-[#6B6457]">
-            Mostrando {list.length} de {list.length} usuarios
+          {/* Paginación */}
+          <div className="flex items-center justify-between px-[18px] py-3 border-t border-[#D8CFB8]">
+            <span className="text-xs text-[#6B6457]">
+              {total === 0 ? "Sin resultados" : `Mostrando ${from}–${to} de ${total} usuarios`}
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                {page > 1 && (
+                  <Link
+                    href={pageLink(search, role, page - 1)}
+                    className="h-7 px-3 text-xs font-semibold border border-[#D8CFB8] text-[#6B6457] rounded hover:bg-[#F5F1EA] transition-colors"
+                  >
+                    ← Anterior
+                  </Link>
+                )}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                  .reduce<(number | "…")[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("…");
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, i) =>
+                    p === "…" ? (
+                      <span key={`ellipsis-${i}`} className="px-2 text-xs text-[#6B6457]">…</span>
+                    ) : (
+                      <Link
+                        key={p}
+                        href={pageLink(search, role, p as number)}
+                        className={[
+                          "h-7 min-w-[28px] px-2 text-xs font-semibold rounded transition-colors flex items-center justify-center",
+                          p === page
+                            ? "bg-[#1B3A2D] text-white"
+                            : "border border-[#D8CFB8] text-[#6B6457] hover:bg-[#F5F1EA]",
+                        ].join(" ")}
+                      >
+                        {p}
+                      </Link>
+                    )
+                  )}
+                {page < totalPages && (
+                  <Link
+                    href={pageLink(search, role, page + 1)}
+                    className="h-7 px-3 text-xs font-semibold border border-[#D8CFB8] text-[#6B6457] rounded hover:bg-[#F5F1EA] transition-colors"
+                  >
+                    Siguiente →
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

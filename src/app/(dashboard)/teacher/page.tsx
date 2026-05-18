@@ -3,22 +3,21 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import {
   groupSubjects, groups, subjects, periods,
-  groupStudents, classSessions,
+  groupStudents, classSessions, attendances,
 } from "@/lib/db/schema";
-import { eq, and, count, gte, lt, sql } from "drizzle-orm";
+import { eq, and, count, gte, lt, sql, inArray } from "drizzle-orm";
 import { Header } from "@/components/shell/header";
 import { QrBadge, attendanceTone } from "@/components/ui/qr-badge";
-import { LayoutGrid, CalendarCheck, TrendingUp, Clock, QrCode } from "lucide-react";
+import { LayoutGrid, CalendarCheck, TrendingUp, QrCode } from "lucide-react";
 import Link from "next/link";
 
 function startOfToday() { const d = new Date(); d.setHours(0,0,0,0); return d; }
 function startOfTomorrow() { const d = new Date(); d.setDate(d.getDate()+1); d.setHours(0,0,0,0); return d; }
 
 async function getTeacherData(teacherId: number) {
-  const today = startOfToday();
+  const today    = startOfToday();
   const tomorrow = startOfTomorrow();
 
-  // Grupos asignados en período activo
   const myGroups = await db
     .select({
       gsId:        groupSubjects.id,
@@ -33,12 +32,13 @@ async function getTeacherData(teacherId: number) {
     .innerJoin(periods,  eq(groups.periodId,         periods.id))
     .where(and(eq(groupSubjects.teacherId, teacherId), eq(periods.active, true)));
 
-  if (myGroups.length === 0) return { myGroups: [], kpis: { groups: 0, sessionsToday: 0, avgAttendance: 0 }, studentsPerGs: {} };
+  if (myGroups.length === 0) {
+    return { myGroups: [], studentsPerGroup: {}, gsAvgMap: {}, overallAvg: null, kpis: { groups: 0, sessionsToday: 0, nextHour: null } };
+  }
 
-  const gsIds = myGroups.map(g => g.gsId);
+  const gsIds    = myGroups.map(g => g.gsId);
   const groupIds = [...new Set(myGroups.map(g => g.groupId))];
 
-  // Sesiones de hoy
   const [todaySessions] = await db
     .select({ n: count() })
     .from(classSessions)
@@ -48,7 +48,6 @@ async function getTeacherData(teacherId: number) {
       lt(classSessions.date, tomorrow),
     ));
 
-  // Próxima sesión hoy
   const nextSession = await db
     .select({ date: classSessions.date })
     .from(classSessions)
@@ -61,15 +60,47 @@ async function getTeacherData(teacherId: number) {
     .orderBy(classSessions.date)
     .limit(1);
 
-  // Conteo de estudiantes por grupo
   const studentCounts = await db
     .select({ groupId: groupStudents.groupId, n: count() })
     .from(groupStudents)
-    .where(sql`${groupStudents.groupId} = ANY(ARRAY[${sql.join(groupIds.map(id => sql`${id}`), sql`, `)}]::int[])`)
+    .where(inArray(groupStudents.groupId, groupIds))
     .groupBy(groupStudents.groupId);
 
   const studentsPerGroup: Record<number, number> = {};
   for (const sc of studentCounts) studentsPerGroup[sc.groupId] = Number(sc.n);
+
+  // Attendance stats per group-subject for cards + overall average
+  const attRows = await db
+    .select({
+      gsId:   classSessions.groupSubjectId,
+      status: attendances.status,
+      n:      count(),
+    })
+    .from(attendances)
+    .innerJoin(classSessions, eq(attendances.classSessionId, classSessions.id))
+    .where(inArray(classSessions.groupSubjectId, gsIds))
+    .groupBy(classSessions.groupSubjectId, attendances.status);
+
+  const totalMap:   Record<number, number> = {};
+  const presentMap: Record<number, number> = {};
+  let overallPresent = 0, overallTotal = 0;
+
+  for (const r of attRows) {
+    totalMap[r.gsId]   = (totalMap[r.gsId] ?? 0)   + Number(r.n);
+    overallTotal       += Number(r.n);
+    if (r.status === "present" || r.status === "justified") {
+      presentMap[r.gsId] = (presentMap[r.gsId] ?? 0) + Number(r.n);
+      overallPresent     += Number(r.n);
+    }
+  }
+
+  const gsAvgMap: Record<number, number | null> = {};
+  for (const gsId of gsIds) {
+    const t = totalMap[gsId] ?? 0;
+    gsAvgMap[gsId] = t > 0 ? Math.round(((presentMap[gsId] ?? 0) / t) * 100) : null;
+  }
+
+  const overallAvg = overallTotal > 0 ? Math.round((overallPresent / overallTotal) * 100) : null;
 
   const nextHour = nextSession[0]?.date
     ? nextSession[0].date.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
@@ -78,8 +109,10 @@ async function getTeacherData(teacherId: number) {
   return {
     myGroups,
     studentsPerGroup,
+    gsAvgMap,
+    overallAvg,
     kpis: {
-      groups: myGroups.length,
+      groups:        myGroups.length,
       sessionsToday: Number(todaySessions.n),
       nextHour,
     },
@@ -92,9 +125,9 @@ export default async function TeacherHomePage() {
   const teacherId = Number(session.user.id);
   const teacherName = session.user.name?.split(" ")[0] ?? "Docente";
 
-  const { myGroups, studentsPerGroup, kpis } = await getTeacherData(teacherId);
+  const { myGroups, studentsPerGroup, gsAvgMap, overallAvg, kpis } = await getTeacherData(teacherId);
 
-  const today = new Date().toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" });
+  const today    = new Date().toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" });
   const subtitle = `${today} · ${kpis.groups} grupo${kpis.groups !== 1 ? "s" : ""} activo${kpis.groups !== 1 ? "s" : ""}`;
 
   return (
@@ -115,22 +148,42 @@ export default async function TeacherHomePage() {
       <div className="flex-1 px-4 md:px-7 py-4 md:py-6 space-y-[18px]">
         {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-[14px]">
-          {[
-            { icon: LayoutGrid,   label: "Grupos asignados",  value: kpis.groups,        hint: "Período activo" },
-            { icon: CalendarCheck, label: "Sesiones hoy",     value: kpis.sessionsToday, hint: kpis.nextHour ? `Próxima a las ${kpis.nextHour}` : "Sin sesiones activas" },
-            { icon: TrendingUp,   label: "Asistencia promedio", value: "—",              hint: "Calculada al cerrar sesiones" },
-          ].map(({ icon: Icon, label, value, hint }) => (
-            <div key={label} className="bg-white border border-[#D8CFB8] rounded-[6px] p-[18px] flex items-start gap-4">
-              <div className="w-9 h-9 rounded bg-[#F5F1EA] flex items-center justify-center shrink-0">
-                <Icon size={18} className="text-[#1B3A2D]" strokeWidth={1.75} />
-              </div>
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-[#6B6457] mb-1">{label}</div>
-                <div className="text-3xl font-semibold text-[#0A0A0A] tabular leading-none">{value}</div>
-                <div className="text-xs text-[#6B6457] mt-1">{hint}</div>
+          <div className="bg-white border border-[#D8CFB8] rounded-[6px] p-[18px] flex items-start gap-4">
+            <div className="w-9 h-9 rounded bg-[#F5F1EA] flex items-center justify-center shrink-0">
+              <LayoutGrid size={18} className="text-[#1B3A2D]" strokeWidth={1.75} />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-[#6B6457] mb-1">Grupos asignados</div>
+              <div className="text-3xl font-semibold text-[#0A0A0A] tabular leading-none">{kpis.groups}</div>
+              <div className="text-xs text-[#6B6457] mt-1">Período activo</div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-[#D8CFB8] rounded-[6px] p-[18px] flex items-start gap-4">
+            <div className="w-9 h-9 rounded bg-[#F5F1EA] flex items-center justify-center shrink-0">
+              <CalendarCheck size={18} className="text-[#1B3A2D]" strokeWidth={1.75} />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-[#6B6457] mb-1">Sesiones hoy</div>
+              <div className="text-3xl font-semibold text-[#0A0A0A] tabular leading-none">{kpis.sessionsToday}</div>
+              <div className="text-xs text-[#6B6457] mt-1">
+                {kpis.nextHour ? `Próxima a las ${kpis.nextHour}` : "Sin sesiones activas"}
               </div>
             </div>
-          ))}
+          </div>
+
+          <div className="bg-white border border-[#D8CFB8] rounded-[6px] p-[18px] flex items-start gap-4">
+            <div className="w-9 h-9 rounded bg-[#F5F1EA] flex items-center justify-center shrink-0">
+              <TrendingUp size={18} className="text-[#1B3A2D]" strokeWidth={1.75} />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-[#6B6457] mb-1">Asistencia promedio</div>
+              {overallAvg !== null
+                ? <div className="mt-1"><QrBadge tone={attendanceTone(overallAvg)} className="text-sm px-2.5 py-1">{overallAvg}%</QrBadge></div>
+                : <div className="text-3xl font-semibold text-[#6B6457] tabular leading-none">—</div>}
+              <div className="text-xs text-[#6B6457] mt-1">Todos tus grupos</div>
+            </div>
+          </div>
         </div>
 
         {/* Grid de grupos */}
@@ -149,8 +202,9 @@ export default async function TeacherHomePage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2">
               {myGroups.slice(0, 4).map((g, i) => {
-                const studentCount = studentsPerGroup?.[g.groupId] ?? 0;
-                const isLast = i >= myGroups.slice(0, 4).length - 2;
+                const studentCount = studentsPerGroup[g.groupId] ?? 0;
+                const avg          = gsAvgMap[g.gsId];
+                const isLast       = i >= myGroups.slice(0, 4).length - 2;
                 return (
                   <div
                     key={g.gsId}
@@ -163,10 +217,15 @@ export default async function TeacherHomePage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-1.5">
                         <QrBadge tone="dark">{g.groupName}</QrBadge>
-                        <QrBadge tone="cream">{studentCount} estudiantes</QrBadge>
+                        <QrBadge tone="cream">{studentCount} estudiante{studentCount !== 1 ? "s" : ""}</QrBadge>
                       </div>
                       <div className="text-[13.5px] font-semibold text-[#0A0A0A] truncate">{g.subjectName}</div>
-                      <div className="text-[11.5px] text-[#6B6457] mt-0.5">Asistencia promedio <span className="text-[#6B6457]">—</span></div>
+                      <div className="text-[11.5px] text-[#6B6457] mt-0.5 flex items-center gap-1.5">
+                        Asistencia promedio{" "}
+                        {avg !== null
+                          ? <QrBadge tone={attendanceTone(avg)}>{avg}%</QrBadge>
+                          : <span>—</span>}
+                      </div>
                     </div>
                     <div className="flex flex-col items-end gap-2 shrink-0">
                       <Link

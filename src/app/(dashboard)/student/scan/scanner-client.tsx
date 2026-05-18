@@ -8,7 +8,7 @@ type ScanState = "scanning" | "loading" | "success" | "error";
 export function QrScannerClient() {
   const [state, setState] = useState<ScanState>("scanning");
   const [message, setMessage] = useState("");
-  const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
+  const scannerRef = useRef<{ stop: () => Promise<void>; clear?: () => void } | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -69,7 +69,8 @@ export function QrScannerClient() {
 
     return () => {
       mountedRef.current = false;
-      scannerRef.current?.stop().catch(() => {});
+      const s = scannerRef.current;
+      if (s) s.stop().catch(() => {}).finally(() => { s.clear?.(); });
     };
   }, []);
 

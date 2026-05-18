@@ -18,6 +18,7 @@ import {
   FileText,
   LogOut,
   X,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "./sidebar-context";
@@ -33,6 +34,7 @@ const adminNav: NavItem[] = [
   { href: "/admin",                       label: "Inicio",              icon: Home },
   { href: "/admin/users",                 label: "Usuarios",            icon: Users },
   { href: "/admin/groups",               label: "Grupos",              icon: LayoutGrid },
+  { href: "/admin/settings/careers",     label: "Carreras",            icon: GraduationCap },
   { href: "/admin/settings/periods",     label: "Períodos",            icon: Calendar },
   { href: "/admin/settings/subjects",    label: "Materias",            icon: BookOpen },
   { href: "/admin/settings/thresholds",  label: "Umbrales de alerta",  icon: AlertTriangle },
