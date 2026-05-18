@@ -1,8 +1,16 @@
 import { db } from '@/lib/db';
-import { classSessions, groupStudents, groupSubjects, attendances, subjects } from '@/lib/db/schema';
-import { eq, and, count, inArray } from 'drizzle-orm';
+import { classSessions, groupStudents, groupSubjects, attendances, subjects, notificationsLog } from '@/lib/db/schema';
+import { eq, and, count, inArray, desc, like } from 'drizzle-orm';
 import { getThresholds } from '@/lib/db/queries/settings';
 import { insertNotification } from '@/lib/db/queries/notifications';
+
+// Mínimo de sesiones cerradas antes de emitir cualquier alerta.
+// Evita falsos positivos al inicio del período cuando cada sesión
+// representa un porcentaje muy alto de la asistencia total.
+const MIN_SESSIONS_BEFORE_ALERT = 3;
+
+// Jerarquía de niveles: mayor número = mayor severidad.
+const LEVEL_RANK: Record<string, number> = { warning: 1, risk: 2, critical: 3 };
 
 export async function checkAttendanceAlerts(sessionId: number): Promise<void> {
   const [session] = await db
@@ -37,7 +45,9 @@ export async function checkAttendanceAlerts(sessionId: number): Promise<void> {
     .where(and(eq(classSessions.groupSubjectId, groupSubjectId), eq(classSessions.status, 'closed')));
 
   const totalClosed = closedSessions.length;
-  if (totalClosed === 0) return;
+
+  // Puerta mínima: no alertar hasta tener suficientes sesiones de referencia.
+  if (totalClosed < MIN_SESSIONS_BEFORE_ALERT) return;
 
   const students = await db
     .select({ studentId: groupStudents.studentId })
@@ -63,26 +73,47 @@ export async function checkAttendanceAlerts(sessionId: number): Promise<void> {
 
     const rate = Math.round((Number(attended.count) / totalClosed) * 100);
 
-    let type: string | null = null;
+    let newLevel: string | null = null;
     let minRequired: number | null = null;
 
     if (rate < thresholds.attendanceCritical) {
-      type = 'critical';
+      newLevel = 'critical';
       minRequired = thresholds.attendanceCritical;
     } else if (rate < thresholds.attendanceRisk) {
-      type = 'risk';
+      newLevel = 'risk';
       minRequired = thresholds.attendanceRisk;
     } else if (rate < thresholds.attendanceWarning) {
-      type = 'warning';
+      newLevel = 'warning';
       minRequired = thresholds.attendanceWarning;
     }
 
-    if (type && minRequired !== null) {
-      await insertNotification({
-        userId: studentId,
-        type,
-        message: `Tu asistencia en ${subjectName} es ${rate}%. El mínimo requerido es ${minRequired}%.`,
-      });
-    }
+    // Si la asistencia está dentro del rango aceptable, no hay alerta.
+    if (!newLevel || minRequired === null) continue;
+
+    // Buscar la última notificación enviada a este estudiante sobre esta materia.
+    // Usamos LIKE sobre el mensaje porque la materia siempre aparece en él.
+    const [lastNotif] = await db
+      .select({ type: notificationsLog.type })
+      .from(notificationsLog)
+      .where(and(
+        eq(notificationsLog.userId, studentId),
+        like(notificationsLog.message, `%${subjectName}%`),
+      ))
+      .orderBy(desc(notificationsLog.createdAt))
+      .limit(1);
+
+    const lastLevel = lastNotif?.type ?? null;
+
+    // Solo notificar si:
+    // - Nunca se ha notificado antes por esta materia, O
+    // - El nivel actual es PEOR que el último registrado (escalación).
+    // Esto previene spam cuando el nivel se mantiene igual o mejora.
+    if (lastLevel && (LEVEL_RANK[lastLevel] ?? 0) >= (LEVEL_RANK[newLevel] ?? 0)) continue;
+
+    await insertNotification({
+      userId: studentId,
+      type: newLevel,
+      message: `Tu asistencia en ${subjectName} es ${rate}% (${Number(attended.count)}/${totalClosed} sesiones). El mínimo requerido es ${minRequired}%.`,
+    });
   }
 }
