@@ -1,0 +1,188 @@
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
+import {
+  groupSubjects, groups, subjects, periods,
+  groupStudents, classSessions,
+} from "@/lib/db/schema";
+import { eq, and, count, gte, lt, sql } from "drizzle-orm";
+import { Header } from "@/components/shell/header";
+import { QrBadge, attendanceTone } from "@/components/ui/qr-badge";
+import { LayoutGrid, CalendarCheck, TrendingUp, Clock, QrCode } from "lucide-react";
+import Link from "next/link";
+
+function startOfToday() { const d = new Date(); d.setHours(0,0,0,0); return d; }
+function startOfTomorrow() { const d = new Date(); d.setDate(d.getDate()+1); d.setHours(0,0,0,0); return d; }
+
+async function getTeacherData(teacherId: number) {
+  const today = startOfToday();
+  const tomorrow = startOfTomorrow();
+
+  // Grupos asignados en período activo
+  const myGroups = await db
+    .select({
+      gsId:        groupSubjects.id,
+      groupId:     groups.id,
+      groupName:   groups.name,
+      subjectName: subjects.name,
+      periodName:  periods.name,
+    })
+    .from(groupSubjects)
+    .innerJoin(groups,   eq(groupSubjects.groupId,   groups.id))
+    .innerJoin(subjects, eq(groupSubjects.subjectId, subjects.id))
+    .innerJoin(periods,  eq(groups.periodId,         periods.id))
+    .where(and(eq(groupSubjects.teacherId, teacherId), eq(periods.active, true)));
+
+  if (myGroups.length === 0) return { myGroups: [], kpis: { groups: 0, sessionsToday: 0, avgAttendance: 0 }, studentsPerGs: {} };
+
+  const gsIds = myGroups.map(g => g.gsId);
+  const groupIds = [...new Set(myGroups.map(g => g.groupId))];
+
+  // Sesiones de hoy
+  const [todaySessions] = await db
+    .select({ n: count() })
+    .from(classSessions)
+    .where(and(
+      sql`${classSessions.groupSubjectId} = ANY(ARRAY[${sql.join(gsIds.map(id => sql`${id}`), sql`, `)}]::int[])`,
+      gte(classSessions.date, today),
+      lt(classSessions.date, tomorrow),
+    ));
+
+  // Próxima sesión hoy
+  const nextSession = await db
+    .select({ date: classSessions.date })
+    .from(classSessions)
+    .where(and(
+      sql`${classSessions.groupSubjectId} = ANY(ARRAY[${sql.join(gsIds.map(id => sql`${id}`), sql`, `)}]::int[])`,
+      gte(classSessions.date, new Date()),
+      lt(classSessions.date, tomorrow),
+      eq(classSessions.status, "active"),
+    ))
+    .orderBy(classSessions.date)
+    .limit(1);
+
+  // Conteo de estudiantes por grupo
+  const studentCounts = await db
+    .select({ groupId: groupStudents.groupId, n: count() })
+    .from(groupStudents)
+    .where(sql`${groupStudents.groupId} = ANY(ARRAY[${sql.join(groupIds.map(id => sql`${id}`), sql`, `)}]::int[])`)
+    .groupBy(groupStudents.groupId);
+
+  const studentsPerGroup: Record<number, number> = {};
+  for (const sc of studentCounts) studentsPerGroup[sc.groupId] = Number(sc.n);
+
+  const nextHour = nextSession[0]?.date
+    ? nextSession[0].date.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
+    : null;
+
+  return {
+    myGroups,
+    studentsPerGroup,
+    kpis: {
+      groups: myGroups.length,
+      sessionsToday: Number(todaySessions.n),
+      nextHour,
+    },
+  };
+}
+
+export default async function TeacherHomePage() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+  const teacherId = Number(session.user.id);
+  const teacherName = session.user.name?.split(" ")[0] ?? "Docente";
+
+  const { myGroups, studentsPerGroup, kpis } = await getTeacherData(teacherId);
+
+  const today = new Date().toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" });
+  const subtitle = `${today} · ${kpis.groups} grupo${kpis.groups !== 1 ? "s" : ""} activo${kpis.groups !== 1 ? "s" : ""}`;
+
+  return (
+    <div className="flex flex-col flex-1">
+      <Header
+        title={`Buen día, ${teacherName}`}
+        subtitle={subtitle}
+        actions={
+          <Link
+            href="/teacher/sessions"
+            className="h-8 px-4 text-[13px] font-semibold bg-[#1B3A2D] text-white rounded hover:bg-[#163023] transition-colors flex items-center gap-1.5"
+          >
+            <CalendarCheck size={14} /> Abrir nueva sesión
+          </Link>
+        }
+      />
+
+      <div className="flex-1 px-7 py-6 space-y-[18px]">
+        {/* KPIs */}
+        <div className="grid grid-cols-3 gap-[14px]">
+          {[
+            { icon: LayoutGrid,   label: "Grupos asignados",  value: kpis.groups,        hint: "Período activo" },
+            { icon: CalendarCheck, label: "Sesiones hoy",     value: kpis.sessionsToday, hint: kpis.nextHour ? `Próxima a las ${kpis.nextHour}` : "Sin sesiones activas" },
+            { icon: TrendingUp,   label: "Asistencia promedio", value: "—",              hint: "Calculada al cerrar sesiones" },
+          ].map(({ icon: Icon, label, value, hint }) => (
+            <div key={label} className="bg-white border border-[#D8CFB8] rounded-[6px] p-[18px] flex items-start gap-4">
+              <div className="w-9 h-9 rounded bg-[#F5F1EA] flex items-center justify-center shrink-0">
+                <Icon size={18} className="text-[#1B3A2D]" strokeWidth={1.75} />
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-[#6B6457] mb-1">{label}</div>
+                <div className="text-3xl font-semibold text-[#0A0A0A] tabular leading-none">{value}</div>
+                <div className="text-xs text-[#6B6457] mt-1">{hint}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Grid de grupos */}
+        <div className="bg-white border border-[#D8CFB8] rounded-[6px]">
+          <div className="flex items-center justify-between px-[18px] py-4 border-b border-[#D8CFB8]">
+            <span className="text-sm font-semibold text-[#0A0A0A]">Mis grupos</span>
+            <Link href="/teacher/groups" className="text-xs text-[#1B3A2D] hover:underline font-semibold">
+              Ver todos →
+            </Link>
+          </div>
+
+          {myGroups.length === 0 ? (
+            <div className="py-14 text-center text-[#6B6457] text-sm">
+              No tienes grupos asignados en el período activo.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2">
+              {myGroups.slice(0, 4).map((g, i) => {
+                const studentCount = studentsPerGroup?.[g.groupId] ?? 0;
+                const isLast = i >= myGroups.slice(0, 4).length - 2;
+                return (
+                  <div
+                    key={g.gsId}
+                    className={[
+                      "p-[18px] flex justify-between items-center gap-4",
+                      i % 2 === 0 ? "border-r border-[#D8CFB8]" : "",
+                      !isLast ? "border-b border-[#D8CFB8]" : "",
+                    ].join(" ")}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <QrBadge tone="dark">{g.groupName}</QrBadge>
+                        <QrBadge tone="cream">{studentCount} estudiantes</QrBadge>
+                      </div>
+                      <div className="text-[13.5px] font-semibold text-[#0A0A0A] truncate">{g.subjectName}</div>
+                      <div className="text-[11.5px] text-[#6B6457] mt-0.5">Asistencia promedio <span className="text-[#6B6457]">—</span></div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <Link
+                        href={`/teacher/sessions?gsId=${g.gsId}`}
+                        className="h-7 px-3 text-xs font-semibold bg-[#1B3A2D] text-white rounded hover:bg-[#163023] transition-colors flex items-center gap-1"
+                      >
+                        <QrCode size={12} /> Abrir sesión
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
