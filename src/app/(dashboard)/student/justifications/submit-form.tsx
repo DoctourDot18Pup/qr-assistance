@@ -1,132 +1,146 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { FileText, ChevronDown, ChevronUp, X } from "lucide-react";
+import { Upload, X, FileText } from "lucide-react";
 import { submitJustification } from "./actions";
+import { useRouter } from "next/navigation";
 
-interface Props {
-  attendanceId: number;
+interface Session {
+  attId: number;
+  label: string;
 }
 
-export function SubmitJustificationForm({ attendanceId }: Props) {
-  const [open, setOpen] = useState(false);
+export function SubmitJustificationForm({ sessions }: { sessions: Session[] }) {
+  const router = useRouter();
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [preview, setPreview] = useState<{ name: string; url: string | null } | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) { setPreview(null); return; }
-    const isImage = file.type.startsWith("image/");
-    setPreview({
-      name: file.name,
-      url: isImage ? URL.createObjectURL(file) : null,
-    });
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragging(false);
+    const dropped = e.dataTransfer.files[0];
+    if (dropped) setFile(dropped);
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     const fd = new FormData(e.currentTarget);
+    if (file) fd.set("file", file);
     startTransition(async () => {
       const res = await submitJustification(fd);
       if (!res.ok) { setError(res.message ?? "Error al enviar."); return; }
-      setSuccess(true);
-      setOpen(false);
-      setPreview(null);
       formRef.current?.reset();
+      setFile(null);
+      router.refresh();
     });
   }
 
-  if (success) {
-    return <span className="text-xs text-[#2F6A4B] font-semibold">Justificante enviado ✓</span>;
+  if (sessions.length === 0) {
+    return (
+      <div className="py-8 text-center text-[#6B6457] text-sm">
+        No tienes faltas pendientes de justificar.
+      </div>
+    );
   }
 
   return (
-    <div>
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="h-7 px-3 text-xs font-semibold border border-[#1B3A2D] text-[#1B3A2D] rounded hover:bg-[#F5F1EA] transition-colors flex items-center gap-1"
-      >
-        <FileText size={11} /> Justificar
-        {open ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-      </button>
-
-      {open && (
-        <form
-          ref={formRef}
-          onSubmit={handleSubmit}
-          className="mt-3 p-3 bg-[#F5F1EA] border border-[#D8CFB8] rounded space-y-2"
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="text-[11px] font-semibold uppercase tracking-wide text-[#6B6457] block mb-1.5">
+          Sesión ausente
+        </label>
+        <select
+          name="attendanceId"
+          required
+          className="w-full h-9 px-3 text-[13px] border border-[#D8CFB8] rounded bg-white focus:outline-none focus:ring-1 focus:ring-[#1B3A2D]"
         >
-          <input type="hidden" name="attendanceId" value={attendanceId} />
+          <option value="">Selecciona una sesión…</option>
+          {sessions.map(s => (
+            <option key={s.attId} value={s.attId}>{s.label}</option>
+          ))}
+        </select>
+      </div>
 
-          <div>
-            <label className="text-[11px] font-semibold text-[#0A0A0A] block mb-1">Motivo</label>
-            <textarea
-              name="description"
-              rows={2}
-              placeholder="Describe brevemente el motivo de tu inasistencia…"
-              className="w-full px-2 py-1.5 text-xs border border-[#D8CFB8] rounded bg-white focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] resize-none"
-            />
-          </div>
+      <div>
+        <label className="text-[11px] font-semibold uppercase tracking-wide text-[#6B6457] block mb-1.5">
+          Motivo
+        </label>
+        <textarea
+          name="description"
+          rows={4}
+          placeholder="Describe brevemente el motivo de tu inasistencia…"
+          className="w-full px-3 py-2 text-[13px] border border-[#D8CFB8] rounded bg-white focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] resize-none"
+        />
+      </div>
 
-          <div>
-            <label className="text-[11px] font-semibold text-[#0A0A0A] block mb-1">
-              Documento adjunto <span className="text-[#6B6457] font-normal">(opcional)</span>
-            </label>
-            <input
-              name="file"
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png"
-              onChange={handleFileChange}
-              className="text-xs text-[#6B6457] file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-[#1B3A2D] file:text-white hover:file:bg-[#163023]"
-            />
-            {preview && (
-              <div className="mt-2 flex items-start gap-2 p-2 bg-white border border-[#D8CFB8] rounded">
-                {preview.url ? (
-                  <img src={preview.url} alt="Vista previa" className="w-16 h-16 object-cover rounded border border-[#D8CFB8]" />
-                ) : (
-                  <div className="w-16 h-16 flex items-center justify-center bg-[#F5F1EA] rounded border border-[#D8CFB8]">
-                    <FileText size={24} className="text-[#6B6457]" />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-semibold text-[#0A0A0A] truncate">{preview.name}</p>
-                  <p className="text-[10px] text-[#6B6457] mt-0.5">Listo para enviar</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setPreview(null); if (formRef.current) { const input = formRef.current.querySelector<HTMLInputElement>('input[type="file"]'); if (input) input.value = ""; } }}
-                  className="text-[#6B6457] hover:text-[#0A0A0A]"
-                >
-                  <X size={13} />
-                </button>
-              </div>
-            )}
-          </div>
+      <div>
+        <label className="text-[11px] font-semibold uppercase tracking-wide text-[#6B6457] block mb-1.5">
+          Documento adjunto{" "}
+          <span className="font-normal normal-case text-[#6B6457]">(opcional)</span>
+        </label>
+        <div
+          onDragOver={e => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-[6px] p-6 text-center cursor-pointer transition-colors ${
+            dragging
+              ? "border-[#1B3A2D] bg-[#EEE9DF]"
+              : "border-[#D8CFB8] hover:border-[#1B3A2D] hover:bg-[#F5F1EA]"
+          }`}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={e => setFile(e.target.files?.[0] ?? null)}
+            className="hidden"
+          />
+          {file ? (
+            <div className="flex items-center justify-center gap-2">
+              <FileText size={16} className="text-[#1B3A2D] shrink-0" />
+              <span className="text-[13px] font-semibold text-[#1B3A2D] truncate max-w-[200px]">
+                {file.name}
+              </span>
+              <button
+                type="button"
+                onClick={e => {
+                  e.stopPropagation();
+                  setFile(null);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+                className="text-[#6B6457] hover:text-[#0A0A0A] shrink-0"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <>
+              <Upload size={20} className="text-[#6B6457] mx-auto mb-2" />
+              <p className="text-[12px] text-[#6B6457]">
+                Arrastra el archivo aquí o{" "}
+                <span className="text-[#1B3A2D] font-semibold">seleccionar archivo</span>
+              </p>
+              <p className="text-[11px] text-[#6B6457] mt-1">PDF, JPG o PNG</p>
+            </>
+          )}
+        </div>
+      </div>
 
-          {error && <p className="text-xs text-[#7A1A1A] font-semibold">{error}</p>}
+      {error && <p className="text-xs text-[#7A1A1A] font-semibold">{error}</p>}
 
-          <div className="flex gap-2 pt-1">
-            <button
-              type="submit"
-              disabled={pending}
-              className="h-7 px-3 text-xs font-semibold bg-[#1B3A2D] text-white rounded hover:bg-[#163023] transition-colors disabled:opacity-50"
-            >
-              {pending ? "Enviando…" : "Enviar justificante"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="h-7 px-3 text-xs font-semibold border border-[#D8CFB8] text-[#6B6457] rounded hover:bg-white transition-colors"
-            >
-              Cancelar
-            </button>
-          </div>
-        </form>
-      )}
-    </div>
+      <button
+        type="submit"
+        disabled={pending}
+        className="w-full h-9 text-[13px] font-semibold bg-[#1B3A2D] text-white rounded hover:bg-[#163023] transition-colors disabled:opacity-50"
+      >
+        {pending ? "Enviando…" : "Enviar justificante"}
+      </button>
+    </form>
   );
 }
