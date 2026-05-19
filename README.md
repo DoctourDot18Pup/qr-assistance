@@ -21,6 +21,7 @@ Desplegado en: **https://qr-assistance-psi.vercel.app**
 - [Importacion masiva de usuarios via CSV](#importacion-masiva-de-usuarios-via-csv)
 - [Casos de uso](#casos-de-uso)
 - [API referencia de endpoints](#api-referencia-de-endpoints)
+- [Ejemplos de respuestas JSON](#ejemplos-de-respuestas-json)
 - [Logica de alertas](#logica-de-alertas)
 - [Reportes](#reportes)
 - [Interfaz responsiva](#interfaz-responsiva)
@@ -440,6 +441,283 @@ En **Configuracion > Umbrales** se ajustan los porcentajes de advertencia, riesg
 | Metodo | Ruta | Rol | Descripcion |
 |---|---|---|---|
 | GET | `/api/notifications` | cualquiera | Listar notificaciones propias |
+
+---
+
+## Ejemplos de respuestas JSON
+
+### Autenticacion
+
+**`POST /api/auth/token`**
+```json
+// Request
+{ "email": "21031430@itcelaya.edu.mx", "password": "Bienvenido123" }
+
+// 200 OK
+{ "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }
+
+// 401 Unauthorized
+{ "error": "Credenciales invalidas." }
+```
+
+---
+
+### Asistencia
+
+**`POST /api/attendance/qr`** — Registrar asistencia por QR
+```json
+// Request
+{ "qrToken": "a3f8c2d1-9b4e-4f7a-8c3d-1e2f5a6b7c8d" }
+
+// 200 — exito
+{ "success": true, "message": "Asistencia registrada correctamente." }
+
+// 400 — token expirado o sesion inactiva
+{ "success": false, "message": "La sesion ya no esta activa o el codigo QR expiro." }
+
+// 409 — asistencia ya registrada
+{ "success": false, "message": "Tu asistencia ya fue registrada en esta sesion." }
+```
+
+**`GET /api/attendance/history`** — Historial del alumno autenticado
+```json
+[
+  {
+    "sessionId": 12,
+    "date": "2026-05-15T10:00:00.000Z",
+    "subjectName": "Programacion Web",
+    "groupName": "ISC-7A",
+    "status": "present",
+    "method": "qr"
+  },
+  {
+    "sessionId": 11,
+    "date": "2026-05-13T10:00:00.000Z",
+    "subjectName": "Programacion Web",
+    "groupName": "ISC-7A",
+    "status": "justified",
+    "method": null
+  },
+  {
+    "sessionId": 10,
+    "date": "2026-05-08T10:00:00.000Z",
+    "subjectName": "Programacion Web",
+    "groupName": "ISC-7A",
+    "status": "absent",
+    "method": null
+  }
+]
+```
+
+---
+
+### Sesiones
+
+**`POST /api/sessions`** — Crear sesion
+```json
+// Request
+{ "groupSubjectId": 3, "toleranceMinutes": 10, "geoEnabled": false }
+
+// 201 Created
+{
+  "id": 14,
+  "status": "active",
+  "date": "2026-05-18T14:30:00.000Z",
+  "qrToken": "b9e1d4f2-3a7c-4b8d-9e2f-1c3d5e7f9a1b"
+}
+```
+
+**`GET /api/sessions`** — Listar sesiones del docente
+```json
+[
+  {
+    "id": 12,
+    "date": "2026-05-15T10:00:00.000Z",
+    "status": "closed",
+    "groupName": "ISC-7A",
+    "subjectName": "Programacion Web",
+    "attendeesCount": 28
+  },
+  {
+    "id": 13,
+    "date": "2026-05-18T10:00:00.000Z",
+    "status": "active",
+    "groupName": "ISC-7A",
+    "subjectName": "Programacion Web",
+    "attendeesCount": 15
+  }
+]
+```
+
+**`GET /api/sessions/[id]/qr`** — Token QR activo
+```json
+{
+  "qrToken": "b9e1d4f2-3a7c-4b8d-9e2f-1c3d5e7f9a1b",
+  "expiresAt": "2026-05-18T14:31:00.000Z"
+}
+```
+
+**`POST /api/sessions/[id]/close`** — Cerrar sesion
+```json
+{
+  "ok": true,
+  "sessionId": 14,
+  "closedAt": "2026-05-18T15:45:00.000Z",
+  "totalStudents": 32,
+  "present": 28,
+  "absent": 4
+}
+```
+
+---
+
+### Grupos
+
+**`GET /api/groups`** — Listar grupos
+```json
+[
+  {
+    "id": 1,
+    "name": "ISC-7A",
+    "careerId": 1,
+    "careerName": "Ingenieria en Sistemas Computacionales",
+    "periodId": 2,
+    "periodName": "Ene-Jun 2026",
+    "studentCount": 32
+  }
+]
+```
+
+**`GET /api/groups/[id]/students`** — Alumnos de un grupo
+```json
+[
+  {
+    "id": 45,
+    "name": "Garcia Lopez Ana",
+    "email": "21031430@itcelaya.edu.mx",
+    "enrollmentNumber": "21031430"
+  },
+  {
+    "id": 46,
+    "name": "Martinez Soto Luis",
+    "email": "21031431@itcelaya.edu.mx",
+    "enrollmentNumber": "21031431"
+  }
+]
+```
+
+---
+
+### Justificantes
+
+**`POST /api/justifications`** — Enviar justificante (`multipart/form-data`)
+```json
+// 200 — exito
+{ "ok": true, "justificationId": 8 }
+
+// 400 — ya existe justificante para esa sesion
+{ "ok": false, "message": "Ya enviaste un justificante para esta sesion." }
+```
+
+**`GET /api/justifications`** — Listar justificantes (filtrados por rol)
+```json
+[
+  {
+    "id": 8,
+    "status": "pending",
+    "description": "Consulta medica urgente",
+    "filePath": "https://xxx.blob.vercel-storage.com/justifications/archivo.pdf",
+    "createdAt": "2026-05-16T09:00:00.000Z",
+    "studentName": "Garcia Lopez Ana",
+    "subjectName": "Programacion Web",
+    "sessionDate": "2026-05-15T10:00:00.000Z"
+  }
+]
+```
+
+**`POST /api/justifications/[id]/approve`** y **`/reject`**
+```json
+{ "ok": true }
+```
+
+---
+
+### Notificaciones
+
+**`GET /api/notifications`**
+```json
+[
+  {
+    "id": 3,
+    "type": "low_attendance",
+    "message": "Tu asistencia en Programacion Web ha bajado al 72%. El minimo requerido es 85%.",
+    "read": false,
+    "createdAt": "2026-05-18T15:46:00.000Z"
+  }
+]
+```
+
+---
+
+### Dashboard
+
+**`GET /api/dashboard/teacher`**
+```json
+{
+  "groupCount": 3,
+  "sessionsTodayCount": 2,
+  "nextSessionAt": "2026-05-18T16:00:00.000Z",
+  "groups": [
+    {
+      "gsId": 5,
+      "groupName": "ISC-7A",
+      "subjectName": "Programacion Web",
+      "studentCount": 32,
+      "attendanceAvg": 87
+    }
+  ]
+}
+```
+
+**`GET /api/dashboard/student`**
+```json
+{
+  "studentName": "Garcia Lopez Ana",
+  "subjects": [
+    {
+      "subjectName": "Programacion Web",
+      "groupName": "ISC-7A",
+      "present": 12,
+      "absent": 2,
+      "justified": 1,
+      "total": 15,
+      "attendanceRate": 87
+    }
+  ],
+  "overallRate": 87,
+  "pendingJustifications": 1
+}
+```
+
+---
+
+### Errores comunes
+
+Todos los errores siguen la misma estructura:
+
+```json
+// 401 — sesion inexistente o expirada
+{ "error": "No autenticado" }
+
+// 403 — rol sin permiso para la ruta
+{ "error": "No autorizado" }
+
+// 422 — parametro requerido ausente
+{ "error": "gsId es requerido." }
+
+// 500 — fallo interno
+{ "error": "Error interno del servidor." }
+```
 
 ---
 
