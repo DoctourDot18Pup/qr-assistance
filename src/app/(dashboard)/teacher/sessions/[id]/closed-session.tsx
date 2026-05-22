@@ -1,6 +1,7 @@
 import { QrBadge, attendanceTone } from "@/components/ui/qr-badge";
 import { Check, X, FileText, QrCode, User } from "lucide-react";
 import Link from "next/link";
+import { ManualMarkButton } from "./mark-manual-button";
 
 export interface RosterRow {
   studentId:        number;
@@ -45,7 +46,7 @@ function formatTime(iso: string | null) {
   return new Date(iso).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-export function ClosedSession({ roster, stats }: { roster: RosterRow[]; stats: Stats }) {
+export function ClosedSession({ roster, stats, sessionId }: { roster: RosterRow[]; stats: Stats; sessionId: number }) {
   return (
     <div className="flex-1 px-4 md:px-7 py-4 md:py-6 space-y-[18px]">
       {/* KPIs */}
@@ -80,6 +81,7 @@ export function ClosedSession({ roster, stats }: { roster: RosterRow[]; stats: S
               <th className="text-left px-4 py-3">Método</th>
               <th className="text-left px-4 py-3">Hora de registro</th>
               <th className="text-left px-4 py-3">Justificante</th>
+              <th className="text-left px-4 py-3">Acción</th>
             </tr>
           </thead>
           <tbody>
@@ -108,6 +110,11 @@ export function ClosedSession({ roster, stats }: { roster: RosterRow[]; stats: S
                       {r.justDescription}
                     </div>
                   )}
+                </td>
+                <td className="px-4 py-3">
+                  {r.status === "absent"
+                    ? <ManualMarkButton sessionId={sessionId} studentId={r.studentId} studentName={r.name} />
+                    : <span className="text-[#6B6457] text-xs">—</span>}
                 </td>
               </tr>
             ))}

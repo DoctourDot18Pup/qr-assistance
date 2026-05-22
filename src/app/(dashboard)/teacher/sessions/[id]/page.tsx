@@ -112,6 +112,7 @@ export default async function SessionDetailPage({
           actions={<QrBadge tone="gray">Cerrada · {durationMins} min</QrBadge>}
         />
         <ClosedSession
+          sessionId={cs.id}
           roster={roster}
           stats={{ present, justified, absent, total, pct }}
         />

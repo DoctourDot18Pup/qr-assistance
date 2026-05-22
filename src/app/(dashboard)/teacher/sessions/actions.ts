@@ -6,6 +6,7 @@ import { eq, and } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { checkAttendanceAlerts } from "@/lib/alerts";
+import { markPresent } from "@/lib/db/queries/attendance";
 
 export async function createSession(fd: FormData) {
   const session = await auth();
@@ -94,5 +95,43 @@ export async function closeSession(sessionId: number) {
   checkAttendanceAlerts(sessionId).catch(() => {});
 
   revalidatePath("/teacher/sessions");
+  return { ok: true };
+}
+
+export async function markManualAttendance(
+  sessionId: number,
+  studentId: number,
+): Promise<{ ok: boolean; message?: string }> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, message: "No autenticado." };
+
+  const teacherId = Number(session.user.id);
+
+  const [cs] = await db
+    .select({ teacherId: groupSubjects.teacherId })
+    .from(classSessions)
+    .innerJoin(groupSubjects, eq(classSessions.groupSubjectId, groupSubjects.id))
+    .where(eq(classSessions.id, sessionId))
+    .limit(1);
+
+  if (!cs) return { ok: false, message: "Sesión no encontrada." };
+  if (cs.teacherId !== teacherId) return { ok: false, message: "Acceso denegado." };
+
+  const [att] = await db
+    .select({ status: attendances.status })
+    .from(attendances)
+    .where(and(
+      eq(attendances.classSessionId, sessionId),
+      eq(attendances.studentId, studentId),
+    ))
+    .limit(1);
+
+  if (!att) return { ok: false, message: "Registro no encontrado." };
+  if (att.status !== "absent") return { ok: false, message: "El alumno ya tiene asistencia registrada." };
+
+  const result = await markPresent(sessionId, studentId, "manual");
+  if (!result) return { ok: false, message: "No se pudo actualizar la asistencia." };
+
+  revalidatePath(`/teacher/sessions/${sessionId}`);
   return { ok: true };
 }
