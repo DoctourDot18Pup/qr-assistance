@@ -226,10 +226,17 @@ async function seedData() {
 
   console.log('  Asignando materias a grupos...');
 
+  // Mapa de gsIds por groupId (para inscribir alumnos a todas las materias del grupo)
+  const gsIdsByGroup: Record<number, number[]> = {};
+
   async function gs(groupId: number, subjectId: number, teacherId: number) {
-    await db.insert(schema.groupSubjects)
+    const [row] = await db.insert(schema.groupSubjects)
       .values({ groupId, subjectId, teacherId })
-      .onConflictDoNothing();
+      .onConflictDoNothing()
+      .returning({ id: schema.groupSubjects.id });
+    if (row) {
+      (gsIdsByGroup[groupId] ??= []).push(row.id);
+    }
   }
 
   // ISC-10A — semestre 10 (materias de 9° que siguen cursando + taller investigación)
@@ -313,9 +320,11 @@ async function seedData() {
   console.log('  Asignando estudiantes a grupos...');
 
   async function addStudent(groupId: number, studentId: number) {
-    await db.insert(schema.groupStudents)
-      .values({ groupId, studentId })
-      .onConflictDoNothing();
+    for (const gsId of (gsIdsByGroup[groupId] ?? [])) {
+      await db.insert(schema.groupStudents)
+        .values({ groupSubjectId: gsId, studentId })
+        .onConflictDoNothing();
+    }
   }
 
   // ISC-10A
