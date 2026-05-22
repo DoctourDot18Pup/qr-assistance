@@ -4,11 +4,9 @@ import {
   groups, careers, periods, groupSubjects, subjects,
   users, groupStudents,
 } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { Header } from "@/components/shell/header";
-import { QrBadge } from "@/components/ui/qr-badge";
 import { SubjectManager } from "./subject-manager";
-import { StudentManager } from "./student-manager";
 import Link from "next/link";
 
 export default async function GroupDetailPage({
@@ -23,6 +21,7 @@ export default async function GroupDetailPage({
     .select({
       id:         groups.id,
       name:       groups.name,
+      careerId:   groups.careerId,
       careerName: careers.name,
       periodName: periods.name,
     })
@@ -34,49 +33,82 @@ export default async function GroupDetailPage({
 
   if (!group) notFound();
 
-  const [assignedSubjects, enrolledStudents, allSubjects, allTeachers, allStudents] =
-    await Promise.all([
-      db
-        .select({
-          gsId:        groupSubjects.id,
-          subjectName: subjects.name,
-          subjectCode: subjects.code,
-          teacherName: users.name,
-        })
-        .from(groupSubjects)
-        .innerJoin(subjects, eq(groupSubjects.subjectId, subjects.id))
-        .innerJoin(users,    eq(groupSubjects.teacherId,  users.id))
-        .where(eq(groupSubjects.groupId, groupId))
-        .orderBy(subjects.name),
+  // Alumnos del mismo período/carrera: estudiantes inscritos en grupos de la misma carrera
+  // para limitar la carga de la BD sin necesitar careerId en users
+  const siblingGroupIds = await db
+    .select({ id: groups.id })
+    .from(groups)
+    .where(eq(groups.careerId, group.careerId));
 
-      db
-        .select({
-          studentId:        users.id,
-          name:             users.name,
-          enrollmentNumber: users.enrollmentNumber,
-        })
-        .from(groupStudents)
-        .innerJoin(users, eq(groupStudents.studentId, users.id))
-        .where(eq(groupStudents.groupId, groupId))
-        .orderBy(users.name),
+  const siblingIds = siblingGroupIds.map(g => g.id);
 
-      db
-        .select({ id: subjects.id, name: subjects.name, code: subjects.code })
-        .from(subjects)
-        .orderBy(subjects.name),
+  const [
+    assignedSubjects,
+    enrolledStudents,
+    allSubjects,
+    allTeachers,
+    careerStudentIds,
+  ] = await Promise.all([
+    db
+      .select({
+        gsId:        groupSubjects.id,
+        subjectName: subjects.name,
+        subjectCode: subjects.code,
+        teacherName: users.name,
+      })
+      .from(groupSubjects)
+      .innerJoin(subjects, eq(groupSubjects.subjectId, subjects.id))
+      .innerJoin(users,    eq(groupSubjects.teacherId,  users.id))
+      .where(eq(groupSubjects.groupId, groupId))
+      .orderBy(subjects.name),
 
-      db
-        .select({ id: users.id, name: users.name })
+    db
+      .select({
+        studentId:        users.id,
+        name:             users.name,
+        enrollmentNumber: users.enrollmentNumber,
+      })
+      .from(groupStudents)
+      .innerJoin(users, eq(groupStudents.studentId, users.id))
+      .where(eq(groupStudents.groupId, groupId))
+      .orderBy(users.name),
+
+    db
+      .select({ id: subjects.id, name: subjects.name, code: subjects.code })
+      .from(subjects)
+      .orderBy(subjects.name),
+
+    db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .where(eq(users.role, "teacher"))
+      .orderBy(users.name),
+
+    // Alumnos de la carrera: los que ya están en algún grupo de la misma carrera
+    siblingIds.length > 0
+      ? db
+          .selectDistinct({ studentId: groupStudents.studentId })
+          .from(groupStudents)
+          .where(inArray(groupStudents.groupId, siblingIds))
+      : Promise.resolve([]),
+  ]);
+
+  // Alumnos disponibles: de la carrera, excluyendo ya inscritos en este grupo
+  const enrolledIds = new Set(enrolledStudents.map(s => s.studentId));
+  const careerIds   = new Set(careerStudentIds.map(r => r.studentId));
+
+  // Si no hay alumnos en la carrera aún, cargamos todos los alumnos del sistema
+  const studentPool = careerIds.size > 0
+    ? await db
+        .select({ id: users.id, name: users.name, enrollmentNumber: users.enrollmentNumber })
         .from(users)
-        .where(eq(users.role, "teacher"))
-        .orderBy(users.name),
-
-      db
+        .where(and(eq(users.role, "student"), inArray(users.id, [...careerIds])))
+        .orderBy(users.name)
+    : await db
         .select({ id: users.id, name: users.name, enrollmentNumber: users.enrollmentNumber })
         .from(users)
         .where(eq(users.role, "student"))
-        .orderBy(users.name),
-    ]);
+        .orderBy(users.name);
 
   return (
     <div className="flex flex-col flex-1">
@@ -111,12 +143,8 @@ export default async function GroupDetailPage({
           assigned={assignedSubjects}
           availableSubjects={allSubjects}
           teachers={allTeachers}
-        />
-
-        <StudentManager
-          groupId={groupId}
           enrolled={enrolledStudents}
-          availableStudents={allStudents}
+          availableStudents={studentPool}
         />
       </div>
     </div>
