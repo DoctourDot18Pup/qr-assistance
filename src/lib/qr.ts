@@ -5,7 +5,7 @@ const secret = () => new TextEncoder().encode(process.env.QR_JWT_SECRET!);
 export async function signQrToken(sessionId: number): Promise<string> {
   return new SignJWT({ sessionId })
     .setProtectedHeader({ alg: 'HS256' })
-    .setExpirationTime('5m')
+    .setExpirationTime('15s')
     .setIssuedAt()
     .sign(await secret());
 }

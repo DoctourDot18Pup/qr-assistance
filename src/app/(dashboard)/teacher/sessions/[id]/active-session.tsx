@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useTransition } from "react";
+import { useState, useEffect, useCallback, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCw, Check, Clock, X } from "lucide-react";
+import { RefreshCw, Check, X } from "lucide-react";
 import { closeSession } from "../actions";
 import QRCode from "qrcode";
+
+const QR_INTERVAL = 15; // segundos entre rotaciones
 
 interface Attendee {
   id: number;
@@ -30,28 +32,25 @@ function formatHour(iso: string | null) {
   return new Date(iso).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
 }
 
+function formatElapsed(seconds: number) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m === 0) return `${s}s`;
+  return `${m}m ${String(s).padStart(2, "0")}s`;
+}
+
 export function ActiveSession({ sessionId, groupName, subjectName, startedAt, initialStatus }: Props) {
   const router = useRouter();
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [total, setTotal] = useState(0);
   const [sessionStatus, setSessionStatus] = useState(initialStatus);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const [expireLabel, setExpireLabel] = useState("");
-  const [elapsed, setElapsed] = useState(0);
+  const [countdown, setCountdown] = useState(QR_INTERVAL);
+  const [elapsedSec, setElapsedSec] = useState(0);
   const [closing, startClose] = useTransition();
   const [closeError, setCloseError] = useState("");
+  const remainingRef = useRef(QR_INTERVAL);
 
-  // Cronómetro de duración de sesión
-  useEffect(() => {
-    const start = new Date(startedAt).getTime();
-    const iv = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - start) / 60000));
-    }, 10000);
-    setElapsed(Math.floor((Date.now() - start) / 60000));
-    return () => clearInterval(iv);
-  }, [startedAt]);
-
-  // Cargar QR token y generar imagen
   const loadQr = useCallback(async () => {
     try {
       const res = await fetch(`/api/sessions/${sessionId}/qr`, { credentials: "include" });
@@ -64,19 +63,32 @@ export function ActiveSession({ sessionId, groupName, subjectName, startedAt, in
           color: { dark: "#1B3A2D", light: "#FFFFFF" },
         });
         setQrDataUrl(dataUrl);
-        const exp = new Date(Date.now() + 5 * 60 * 1000);
-        setExpireLabel(exp.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }));
       }
     } catch { /* silencioso */ }
   }, [sessionId]);
 
-  // Cargar QR al montar y cada 4.5 min
+  // Timer combinado: rotación del QR + cronómetro de sesión
   useEffect(() => {
     if (sessionStatus !== "active") return;
+    const start = new Date(startedAt).getTime();
+
+    setElapsedSec(Math.floor((Date.now() - start) / 1000));
+    remainingRef.current = QR_INTERVAL;
+    setCountdown(QR_INTERVAL);
     loadQr();
-    const iv = setInterval(loadQr, 4.5 * 60 * 1000);
+
+    const iv = setInterval(() => {
+      setElapsedSec(Math.floor((Date.now() - start) / 1000));
+      remainingRef.current -= 1;
+      if (remainingRef.current <= 0) {
+        loadQr();
+        remainingRef.current = QR_INTERVAL;
+      }
+      setCountdown(remainingRef.current);
+    }, 1000);
+
     return () => clearInterval(iv);
-  }, [loadQr, sessionStatus]);
+  }, [loadQr, sessionStatus, startedAt]);
 
   // Polling de asistentes cada 3 s
   useEffect(() => {
@@ -96,6 +108,12 @@ export function ActiveSession({ sessionId, groupName, subjectName, startedAt, in
     const iv = setInterval(poll, 3000);
     return () => clearInterval(iv);
   }, [sessionId, sessionStatus]);
+
+  function handleRegenerateQr() {
+    loadQr();
+    remainingRef.current = QR_INTERVAL;
+    setCountdown(QR_INTERVAL);
+  }
 
   function handleClose() {
     setCloseError("");
@@ -127,16 +145,20 @@ export function ActiveSession({ sessionId, groupName, subjectName, startedAt, in
                   : <div className="w-[280px] h-[280px] flex items-center justify-center text-xs text-[#6B6457]">Generando…</div>
                 }
               </div>
-              <div className="text-center">
-                <div className="text-[13px] font-semibold text-[#0A0A0A]">Válido por 5 minutos</div>
-                {expireLabel && (
-                  <div className="text-xs text-[#6B6457] mt-1 flex items-center justify-center gap-1.5">
-                    <Clock size={11} /> Expira a las {expireLabel}
-                  </div>
-                )}
+
+              <div className="text-center w-[280px]">
+                <div className="text-[13px] font-semibold text-[#0A0A0A]">Se renueva automáticamente</div>
+                <div className="text-xs text-[#6B6457] mt-0.5">Rota en {countdown}s</div>
+                <div className="h-1 bg-[#F5F1EA] rounded-full overflow-hidden mt-2">
+                  <div
+                    className="h-full bg-[#1B3A2D] rounded-full"
+                    style={{ width: `${(countdown / QR_INTERVAL) * 100}%` }}
+                  />
+                </div>
               </div>
+
               <button
-                onClick={loadQr}
+                onClick={handleRegenerateQr}
                 className="h-8 px-4 text-[13px] font-semibold border border-[#1B3A2D] text-[#1B3A2D] rounded hover:bg-[#F5F1EA] transition-colors flex items-center gap-1.5"
               >
                 <RefreshCw size={13} /> Regenerar QR
@@ -155,9 +177,11 @@ export function ActiveSession({ sessionId, groupName, subjectName, startedAt, in
         <div className="flex items-start justify-between px-[18px] py-4 border-b border-[#D8CFB8]">
           <div>
             <div className="text-[13px] font-semibold text-[#0A0A0A]">Asistencia en vivo</div>
-            {!isClosed && (
-              <div className="text-[11.5px] text-[#6B6457] mt-0.5">Actualizando cada 3 segundos</div>
-            )}
+            <div className="text-[11.5px] text-[#6B6457] mt-0.5">
+              {isClosed
+                ? "Sesión cerrada"
+                : `${formatElapsed(elapsedSec)} transcurridos · actualizando cada 3s`}
+            </div>
           </div>
           <div className="text-right">
             <div className="text-2xl font-semibold text-[#1B3A2D] tabular leading-none">
