@@ -24,6 +24,10 @@ Desplegado en: **https://qr-assistance-psi.vercel.app**
 - [Ejemplos de respuestas JSON](#ejemplos-de-respuestas-json)
 - [Logica de alertas](#logica-de-alertas)
 - [Reportes](#reportes)
+- [Flujo completo del sistema](#flujo-completo-del-sistema)
+- [Acciones preventivas ante fallos](#acciones-preventivas-ante-fallos)
+- [Metricas de seguridad](#metricas-de-seguridad)
+- [Funcionalidades futuras](#funcionalidades-futuras)
 - [Interfaz responsiva](#interfaz-responsiva)
 - [Despliegue en Vercel](#despliegue-en-vercel)
 
@@ -354,9 +358,7 @@ El QR se regenera automaticamente cada 4.5 minutos. El docente puede forzar la r
 
 **Actor:** Alumno
 
-El alumno accede a **Escanear QR** desde su dispositivo movil, apunta la camara al codigo proyectado y el sistema registra su asistencia como presente. El token QR expira a los 5 minutos.
-
-Si el docente habilito restriccion geografica, el sistema valida que el alumno este dentro del radio configurado usando GPS.
+El alumno accede a **Escanear QR** desde su dispositivo movil, apunta la camara al codigo proyectado y el sistema registra su asistencia como presente. El token QR expira a los 15 segundos; el cliente lo rota automaticamente cada 4.5 minutos.
 
 ---
 
@@ -746,6 +748,117 @@ Al cerrar una sesion se ejecuta la verificacion de alertas de forma no bloqueant
 ### PDF
 
 Generado con `jspdf-autotable`. Incluye cabecera con nombre de materia, grupo, docente y sesiones impartidas. La tabla muestra por alumno: presencias, ausencias, justificados y porcentaje final. El pie incluye el promedio general del grupo.
+
+---
+
+## Flujo completo del sistema
+
+### Configuracion inicial
+
+```
+careers → periods → subjects → groups
+                                  |
+                         group_subjects  (asigna una materia y un docente al grupo)
+                                  |
+                         group_students  (inscribe alumnos por materia, no por grupo)
+```
+
+Un alumno puede estar inscrito en algunas materias de un grupo y no en otras. La unidad de inscripcion es siempre el registro `group_subjects` (`gsId`).
+
+### Apertura de sesion de clase
+
+```
+Docente abre sesion
+  → DB inserta class_sessions (status='active')
+  → pre-inserta attendances (status='absent') para cada alumno de esa materia
+  → genera token QR (JWT HS256, expiracion 15 segundos, firmado con QR_JWT_SECRET)
+  → cliente rota el token cada 4.5 minutos
+```
+
+El QR contiene unicamente el `sessionId`. El token se genera en el servidor y nunca persiste en la base de datos.
+
+### Registro de asistencia
+
+```
+Alumno escanea QR → POST /api/attendance/qr
+  → verifyQrToken  — si expiro: 401
+  → classSession.status === 'active'  — si no: 409
+  → attendance existe para ese alumno  — si no esta inscrito: 404
+  → attendance.status !== 'present'  — si ya escaneo: 409
+  → markPresent → status='present', method='qr'
+```
+
+### Cierre de sesion y alertas
+
+```
+Docente cierra sesion
+  → class_sessions.status = 'closed', closedAt = now
+  → checkAttendanceAlerts (no bloqueante, no afecta el cierre si falla)
+      → requiere minimo 3 sesiones cerradas antes de emitir alertas
+      → rate = (present + justified) / total_closed * 100
+      → compara con umbrales configurables (warning / risk / critical)
+      → solo notifica si es primera vez o si el nivel escala (anti-spam)
+```
+
+### Justificantes
+
+```
+Alumno → submitJustification(FormData)
+  → attendance.status === 'absent'  — solo faltas
+  → no existe justificante previo para esa falta
+  → archivo (opcional) → Vercel Blob privado (max 4 MB, validado en cliente)
+  → inserta justifications (status='pending')
+
+Docente → aprueba o rechaza
+  → status = 'approved' | 'rejected'
+  → si aprueba: attendance.status → 'justified'
+  → razon de rechazo visible para el alumno
+```
+
+---
+
+## Acciones preventivas ante fallos
+
+| Escenario | Comportamiento |
+|---|---|
+| Token QR expirado | `verifyQrToken` lanza excepcion; el endpoint retorna 401 al alumno |
+| Sesion cerrada al momento del escaneo | Verificacion de `status !== 'active'` retorna 409 |
+| Alumno no inscrito en la materia | El registro `attendance` no existe; retorna 404 |
+| Doble escaneo del mismo alumno | `attendance.status === 'present'` retorna 409 |
+| Archivo mayor a 4 MB en justificante | Rechazado en el cliente antes de enviarse; el servidor tiene el mismo limite via `experimental.serverActions.bodySizeLimit` |
+| Fallo al subir archivo al Blob store | El error queda atrapado; retorna mensaje al usuario sin interrumpir el flujo principal |
+| `BLOB_READ_WRITE_TOKEN` ausente | El sistema funciona con normalidad pero los justificantes no admiten adjuntos. No se muestra aviso explicito al usuario — se recomienda verificar la variable en produccion |
+| Fallo no bloqueante de alertas | `checkAttendanceAlerts` se ejecuta despues del cierre; si falla, el cierre de sesion ya quedo confirmado |
+| Base de datos no disponible | Neon HTTP retorna error; todos los handlers responden con `fail('Error interno', 500)`. No hay reintento automatico — fallo puntual llega al usuario como error generico |
+
+**Punto de atencion:** no existe retry con backoff en la capa de queries. Para entornos con SLA critico se recomienda agregar logica de reintento en la conexion a Neon.
+
+---
+
+## Metricas de seguridad
+
+| Capa | Que protege | Mecanismo |
+|---|---|---|
+| Autenticacion | Acceso a todas las rutas | Auth.js v5, JWT en cookie HTTP-only, `maxAge` 7 dias |
+| Autorizacion en API | Endpoints `/api/*` | `requireRole(['admin'\|'teacher'\|'student'])` en cada handler; lanza 401 o 403 segun el caso |
+| Autorizacion en navegador | Rutas del dashboard | `middleware.ts` redirige a `/login` si no hay sesion; redirige a `/dashboard` si el rol no coincide |
+| Ownership de sesiones | Docente solo opera sus propias materias | `getGroupSubjectForTeacher(gsId, teacherId)` verifica propiedad antes de crear o cerrar sesion |
+| Anti-replay en QR | Un token no puede reutilizarse | Expiracion de 15 segundos en JWT + `status='present'` impide el segundo registro |
+| Integridad de justificantes | Solo el alumno justifica su propia falta | Verificacion `att.studentId !== studentId` retorna 403 |
+| Archivos privados | Documentos de justificantes no son publicos | Vercel Blob con acceso privado; servidos exclusivamente via `/api/blob-download` que valida sesion activa |
+| Almacenamiento de contrasenas | Credenciales seguras en BD | `bcryptjs` con hash; nunca se guarda texto plano |
+| Tamano de payload | Ataques de carga masiva en Server Actions | `experimental.serverActions.bodySizeLimit: '4mb'` en `next.config.ts` |
+| Bearer token externo | Clientes de API (Postman, integraciones) | Firmado con `NEXTAUTH_SECRET` via `jose jwtVerify`; mismo secreto que Auth.js |
+
+**Punto de atencion:** la contrasena inicial de todos los usuarios importados es `Bienvenido123`. No existe forzado de cambio en el primer acceso. Se recomienda implementar un flag `mustChangePassword` o instruir al administrador para cambiarla inmediatamente despues de la importacion en produccion.
+
+---
+
+## Funcionalidades futuras
+
+Las siguientes funcionalidades estan parcialmente preparadas en el esquema y el backend pero pendientes de implementacion completa en la interfaz:
+
+- **Restriccion geografica en sesiones de clase**: el esquema de `class_sessions` incluye los campos `latitude`, `longitude`, `geo_radius` y `geo_enabled`, y el endpoint `/api/attendance/qr` tiene la logica de validacion haversine lista. Falta exponer los controles en la interfaz del docente para activar y configurar el radio de cobertura por sesion.
 
 ---
 
