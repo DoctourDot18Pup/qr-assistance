@@ -148,7 +148,7 @@ export function SubjectManager({
   );
   const [removeSearch, setRemoveSearch] = useState("");
   const [addSearch, setAddSearch] = useState("");
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [addError, setAddError] = useState("");
   const [addPending, startAddTransition] = useTransition();
 
@@ -174,7 +174,7 @@ export function SubjectManager({
     setActiveGsId(gsId);
     setRemoveSearch("");
     setAddSearch("");
-    setSelectedId("");
+    setSelectedIds(new Set());
     setAddError("");
   }
 
@@ -195,23 +195,33 @@ export function SubjectManager({
     });
   }
 
+  function toggleStudent(id: number) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedId || activeGsId === null) { setAddError("Selecciona un alumno."); return; }
+    if (selectedIds.size === 0 || activeGsId === null) { setAddError("Selecciona al menos un alumno."); return; }
     setAddError("");
+    const gsId = activeGsId;
+    const ids = Array.from(selectedIds);
     startAddTransition(async () => {
-      const res = await enrollStudent(activeGsId, Number(selectedId));
-      if (!res.ok) { setAddError(res.message ?? "Error."); return; }
-      const newStudent = availableStudents.find(s => s.id === Number(selectedId))!;
+      const results = await Promise.all(ids.map(id => enrollStudent(gsId, id)));
+      const failed = results.filter(r => !r.ok);
+      if (failed.length > 0) { setAddError(failed[0].message ?? "Error al inscribir."); return; }
+      const newStudents = ids.map(id => {
+        const s = availableStudents.find(s => s.id === id)!;
+        return { studentId: s.id, name: s.name, enrollmentNumber: s.enrollmentNumber };
+      });
       setEnrolledByGs(prev => ({
         ...prev,
-        [activeGsId]: [...(prev[activeGsId] ?? []), {
-          studentId:        newStudent.id,
-          name:             newStudent.name,
-          enrollmentNumber: newStudent.enrollmentNumber,
-        }].sort((a, b) => a.name.localeCompare(b.name)),
+        [gsId]: [...(prev[gsId] ?? []), ...newStudents].sort((a, b) => a.name.localeCompare(b.name)),
       }));
-      setSelectedId("");
+      setSelectedIds(new Set());
       setAddSearch("");
     });
   }
@@ -377,7 +387,7 @@ export function SubjectManager({
                 <div className="text-xs font-semibold text-[#6B6457] uppercase tracking-wide">Agregar alumno</div>
                 <input
                   value={addSearch}
-                  onChange={e => { setAddSearch(e.target.value); setSelectedId(""); }}
+                  onChange={e => setAddSearch(e.target.value)}
                   placeholder="Buscar por nombre o matrícula…"
                   className="w-full h-8 px-3 text-[13px] border border-[#D8CFB8] rounded bg-white focus:outline-none focus:ring-1 focus:ring-[#1B3A2D]"
                 />
@@ -391,13 +401,13 @@ export function SubjectManager({
                       <label key={s.id}
                         className={[
                           "flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[#F5F1EA] transition-colors",
-                          String(s.id) === selectedId ? "bg-[#F5F1EA]" : "",
+                          selectedIds.has(s.id) ? "bg-[#EEF7F1]" : "",
                         ].join(" ")}
                       >
-                        <input type="radio" name="addStudent" value={s.id}
-                          checked={String(s.id) === selectedId}
-                          onChange={() => setSelectedId(String(s.id))}
-                          className="accent-[#1B3A2D]"
+                        <input type="checkbox"
+                          checked={selectedIds.has(s.id)}
+                          onChange={() => toggleStudent(s.id)}
+                          className="accent-[#1B3A2D] w-3.5 h-3.5 shrink-0"
                         />
                         <span className="text-[13px] text-[#0A0A0A] flex-1">{s.name}</span>
                         <span className="text-[11px] text-[#6B6457]">{s.enrollmentNumber ?? "—"}</span>
@@ -407,9 +417,9 @@ export function SubjectManager({
                 </div>
                 {addError && <p className="text-xs text-[#7A1A1A] font-semibold">{addError}</p>}
                 <div className="flex justify-end">
-                  <button type="submit" disabled={addPending || !selectedId}
+                  <button type="submit" disabled={addPending || selectedIds.size === 0}
                     className="h-8 px-4 text-[13px] font-semibold bg-[#1B3A2D] text-white rounded hover:bg-[#163023] transition-colors disabled:opacity-50">
-                    {addPending ? "Inscribiendo…" : "Inscribir"}
+                    {addPending ? "Inscribiendo…" : selectedIds.size > 0 ? `Inscribir (${selectedIds.size})` : "Inscribir"}
                   </button>
                 </div>
               </form>
