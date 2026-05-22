@@ -5,6 +5,8 @@ import { Upload, X, FileText } from "lucide-react";
 import { submitJustification } from "./actions";
 import { useRouter } from "next/navigation";
 
+const MAX_FILE_BYTES = 4 * 1024 * 1024; // 4 MB
+
 interface Session {
   attId: number;
   label: string;
@@ -19,15 +21,28 @@ export function SubmitJustificationForm({ sessions }: { sessions: Session[] }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
+  function pickFile(f: File) {
+    if (f.size > MAX_FILE_BYTES) {
+      setError("El archivo supera el límite de 4 MB. Usa un archivo más pequeño.");
+      return;
+    }
+    setError("");
+    setFile(f);
+  }
+
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     setDragging(false);
     const dropped = e.dataTransfer.files[0];
-    if (dropped) setFile(dropped);
+    if (dropped) pickFile(dropped);
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (file && file.size > MAX_FILE_BYTES) {
+      setError("El archivo supera el límite de 4 MB. Usa un archivo más pequeño.");
+      return;
+    }
     setError("");
     const fd = new FormData(e.currentTarget);
     if (file) fd.set("file", file);
@@ -98,7 +113,7 @@ export function SubmitJustificationForm({ sessions }: { sessions: Session[] }) {
             ref={fileInputRef}
             type="file"
             accept=".pdf,.jpg,.jpeg,.png"
-            onChange={e => setFile(e.target.files?.[0] ?? null)}
+            onChange={e => { const f = e.target.files?.[0]; if (f) pickFile(f); }}
             className="hidden"
           />
           {file ? (
@@ -126,7 +141,7 @@ export function SubmitJustificationForm({ sessions }: { sessions: Session[] }) {
                 Arrastra el archivo aquí o{" "}
                 <span className="text-[#1B3A2D] font-semibold">seleccionar archivo</span>
               </p>
-              <p className="text-[11px] text-[#6B6457] mt-1">PDF, JPG o PNG</p>
+              <p className="text-[11px] text-[#6B6457] mt-1">PDF, JPG o PNG · máx. 4 MB</p>
             </>
           )}
         </div>
