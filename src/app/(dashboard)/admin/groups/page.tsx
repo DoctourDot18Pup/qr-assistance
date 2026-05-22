@@ -4,6 +4,7 @@ import { eq, and, ilike } from "drizzle-orm";
 import { Header } from "@/components/shell/header";
 import { QrBadge } from "@/components/ui/qr-badge";
 import { NewGroupButton } from "./new-group-button";
+import Link from "next/link";
 
 async function getGroups(search?: string, careerId?: string, periodId?: string) {
   const rows = await db
@@ -111,6 +112,7 @@ export default async function GroupsPage({
                   <th className="text-left px-[18px] py-3 whitespace-nowrap">Grupo</th>
                   <th className="text-left px-4 py-3 whitespace-nowrap">Carrera</th>
                   <th className="text-left px-4 py-3 whitespace-nowrap">Período</th>
+                  <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody>
@@ -121,6 +123,14 @@ export default async function GroupsPage({
                     </td>
                     <td className="px-4 py-3 text-[#0A0A0A]">{g.career}</td>
                     <td className="px-4 py-3 text-[#6B6457]">{g.period}</td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        href={`/admin/groups/${g.id}`}
+                        className="h-7 px-3 text-xs font-semibold border border-[#1B3A2D] text-[#1B3A2D] rounded hover:bg-[#F5F1EA] transition-colors inline-flex items-center"
+                      >
+                        Gestionar
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>
