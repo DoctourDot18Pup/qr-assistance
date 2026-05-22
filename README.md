@@ -145,7 +145,7 @@ El sistema define 12 tablas en PostgreSQL:
 | `subjects` | Materias con numero de sesiones planeadas |
 | `groups` | Grupos que pertenecen a una carrera y un periodo |
 | `group_subjects` | Relacion grupo-materia-docente |
-| `group_students` | Alumnos inscritos en cada grupo |
+| `group_students` | Alumnos inscritos en cada grupo-materia (clave compuesta `group_subject_id` + `student_id`) |
 | `class_sessions` | Sesiones de clase con estado active o closed |
 | `attendances` | Registro de asistencia por sesion y alumno |
 | `justifications` | Justificantes enviados por los alumnos |
@@ -305,9 +305,11 @@ Juan Gomez,juan.gomez@itcelaya.edu.mx,,admin
 
 ---
 
-### Importacion de alumnos por grupo (`/teacher/groups/[id]/import`)
+### Importacion de alumnos por materia (`/teacher/groups/[gsId]/import`)
 
-**Rol requerido:** Docente (propietario del grupo)
+**Rol requerido:** Docente (propietario del grupo-materia)
+
+El parametro `gsId` de la URL es el identificador del registro `group_subjects`, no el grupo. Cada materia tiene su propia lista de alumnos.
 
 **Formato del CSV:**
 
@@ -320,9 +322,9 @@ Miguel Reyes,21031012
 
 - El correo siempre se genera automaticamente como `{matricula}@itcelaya.edu.mx`.
 - Si el alumno no existe se crea con contrasena `Bienvenido123`.
-- Si el alumno ya existe pero no esta inscrito en el grupo, se inscribe directamente.
-- Si el alumno ya esta inscrito en el grupo, la fila se marca como "Ya inscrito".
-- Al inscribir a un alumno, el sistema pre-inserta registros de ausencia en todas las sesiones activas del grupo.
+- Si el alumno ya existe pero no esta inscrito en la materia, se inscribe directamente.
+- Si el alumno ya esta inscrito en la materia, la fila se marca como "Ya inscrito".
+- Al inscribir a un alumno, el sistema pre-inserta registros de ausencia en todas las sesiones activas de esa materia.
 
 **Resultado:** Vista de KPIs con conteo de Añadidos, Ya inscritos y Errores.
 
@@ -334,7 +336,7 @@ Miguel Reyes,21031012
 
 **Actor:** Administrador
 
-El administrador crea las carreras, el periodo activo, las materias y los grupos. Luego asigna docentes a cada grupo-materia e inscribe alumnos. Puede hacer la carga inicial de forma masiva con CSV.
+El administrador crea las carreras, el periodo activo, las materias y los grupos. Luego asigna docentes a cada grupo-materia (registros en `group_subjects`) e inscribe alumnos por materia (registros en `group_students`). Un alumno puede estar inscrito en algunas materias del grupo y no en otras. Puede hacer la carga inicial de forma masiva con CSV.
 
 ---
 
@@ -588,22 +590,23 @@ En **Configuracion > Umbrales** se ajustan los porcentajes de advertencia, riesg
 ]
 ```
 
-**`GET /api/groups/[id]/students`** — Alumnos de un grupo
+**`POST /api/groups/[gsId]/students`** — Inscribir alumno en un grupo-materia
+
+`[gsId]` es el `id` del registro `group_subjects`, no el grupo.
+
 ```json
-[
-  {
-    "id": 45,
-    "name": "Garcia Lopez Ana",
-    "email": "21031430@itcelaya.edu.mx",
-    "enrollmentNumber": "21031430"
-  },
-  {
-    "id": 46,
-    "name": "Martinez Soto Luis",
-    "email": "21031431@itcelaya.edu.mx",
-    "enrollmentNumber": "21031431"
-  }
-]
+// Request
+{ "studentId": 45 }
+
+// 201 Created
+{ "ok": true, "message": "Alumno inscrito al grupo." }
+```
+
+**`DELETE /api/groups/[gsId]/students/[studentId]`** — Quitar alumno de un grupo-materia
+
+```json
+// 200 OK
+{ "ok": true, "message": "Alumno removido del grupo." }
 ```
 
 ---
