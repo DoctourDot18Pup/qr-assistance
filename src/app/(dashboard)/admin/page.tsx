@@ -32,9 +32,11 @@ function startOfTomorrow() {
   return d;
 }
 
+const TZ = "America/Mexico_City";
+
 function formatTime(d: Date | null) {
   if (!d) return "—";
-  return d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
 }
 
 // ─── data ───────────────────────────────────────────────────────────────────
@@ -201,6 +203,7 @@ export default async function AdminHomePage() {
                 year: "numeric",
                 month: "long",
                 day: "numeric",
+                timeZone: TZ,
               })}
             </span>
           </div>

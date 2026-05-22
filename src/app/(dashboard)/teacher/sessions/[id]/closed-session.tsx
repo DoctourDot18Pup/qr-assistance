@@ -43,7 +43,7 @@ function justBadge(status: string | null) {
 
 function formatTime(iso: string | null) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return new Date(iso).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "America/Mexico_City" });
 }
 
 export function ClosedSession({ roster, stats, sessionId }: { roster: RosterRow[]; stats: Stats; sessionId: number }) {

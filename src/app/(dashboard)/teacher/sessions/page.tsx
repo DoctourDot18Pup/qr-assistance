@@ -139,7 +139,7 @@ export default async function TeacherSessionsPage({
                 {sessionList.map((s, i) => (
                   <tr key={s.id} className={i % 2 === 1 ? "bg-[#F5F1EA]" : ""}>
                     <td className="px-[18px] py-3 tabular text-[#6B6457] text-xs">
-                      {s.date?.toLocaleDateString("es-MX", { day:"numeric", month:"short", year:"numeric" }) ?? "—"}
+                      {s.date?.toLocaleDateString("es-MX", { day:"numeric", month:"short", year:"numeric", timeZone:"America/Mexico_City" }) ?? "—"}
                     </td>
                     <td className="px-4 py-3">
                       <QrBadge tone="dark">{s.groupName}</QrBadge>

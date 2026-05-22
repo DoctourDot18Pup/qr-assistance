@@ -69,7 +69,7 @@ export default async function StudentJustificationsPage() {
   function formatDate(d: Date | string | null) {
     if (!d) return "—";
     const dt = d instanceof Date ? d : new Date(d);
-    return dt.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" });
+    return dt.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Mexico_City" });
   }
 
   // Sessions the student can still justify

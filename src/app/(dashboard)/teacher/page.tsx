@@ -103,7 +103,7 @@ async function getTeacherData(teacherId: number) {
   const overallAvg = overallTotal > 0 ? Math.round((overallPresent / overallTotal) * 100) : null;
 
   const nextHour = nextSession[0]?.date
-    ? nextSession[0].date.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
+    ? nextSession[0].date.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", timeZone: "America/Mexico_City" })
     : null;
 
   return {
@@ -127,7 +127,7 @@ export default async function TeacherHomePage() {
 
   const { myGroups, studentsPerGroup, gsAvgMap, overallAvg, kpis } = await getTeacherData(teacherId);
 
-  const today    = new Date().toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" });
+  const today    = new Date().toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Mexico_City" });
   const subtitle = `${today} · ${kpis.groups} grupo${kpis.groups !== 1 ? "s" : ""} activo${kpis.groups !== 1 ? "s" : ""}`;
 
   return (

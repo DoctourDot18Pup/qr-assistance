@@ -119,7 +119,7 @@ export default async function TeacherJustificationsPage({
                     <td className="px-[18px] py-3 font-semibold text-[#0A0A0A]">{j.studentName}</td>
                     <td className="px-4 py-3 text-[#6B6457]">{j.subjectName}</td>
                     <td className="px-4 py-3 tabular text-[#6B6457] text-xs">
-                      {j.sessionDate?.toLocaleDateString("es-MX", { day: "numeric", month: "short" }) ?? "—"}
+                      {j.sessionDate?.toLocaleDateString("es-MX", { day: "numeric", month: "short", timeZone: "America/Mexico_City" }) ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-[#0A0A0A] max-w-[200px] truncate">
                       {j.description ?? "—"}

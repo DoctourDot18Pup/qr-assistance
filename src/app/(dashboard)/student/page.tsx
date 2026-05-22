@@ -120,7 +120,7 @@ export default async function StudentHomePage() {
     justPending,
   } = await getStudentData(studentId);
 
-  const today = new Date().toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" });
+  const today = new Date().toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Mexico_City" });
   const subtitle = `${today} · ${mySubjects.length} materia${mySubjects.length !== 1 ? "s" : ""} activa${mySubjects.length !== 1 ? "s" : ""}`;
 
   return (

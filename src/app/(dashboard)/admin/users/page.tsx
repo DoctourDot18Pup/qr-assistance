@@ -155,7 +155,7 @@ export default async function UsersPage({
                       <td className="px-4 py-3 tabular text-[#6B6457]">{u.enrollmentNumber ?? "—"}</td>
                       <td className="px-4 py-3">{roleBadge(u.role)}</td>
                       <td className="px-4 py-3 tabular text-[#6B6457] text-xs">
-                        {u.createdAt?.toLocaleDateString("es-MX") ?? "—"}
+                        {u.createdAt?.toLocaleDateString("es-MX", { timeZone: "America/Mexico_City" }) ?? "—"}
                       </td>
                     </tr>
                   ))}
