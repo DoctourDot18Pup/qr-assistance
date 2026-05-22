@@ -34,11 +34,11 @@ export async function createSession(fd: FormData) {
     })
     .returning();
 
-  // Pre-insertar registros absent para todos los estudiantes del grupo
+  // Pre-insertar registros absent para todos los estudiantes de esta materia
   const students = await db
     .select({ studentId: groupStudents.studentId })
     .from(groupStudents)
-    .where(eq(groupStudents.groupId, gs.groupId));
+    .where(eq(groupStudents.groupSubjectId, gsId));
 
   if (students.length > 0) {
     await db
@@ -63,20 +63,11 @@ export async function closeSession(sessionId: number) {
 
   if (!cs || cs.status !== "active") return { ok: false, message: "Sesión no encontrada o ya cerrada." };
 
-  // Obtener grupo desde groupSubjects
-  const [gs] = await db
-    .select({ groupId: groupSubjects.groupId })
-    .from(groupSubjects)
-    .where(eq(groupSubjects.id, cs.groupSubjectId))
-    .limit(1);
-
-  if (!gs) return { ok: false, message: "Error al obtener el grupo." };
-
-  // Marcar ausentes a los estudiantes que no escanearon
+  // Marcar ausentes a los estudiantes de esta materia que no escanearon
   const students = await db
     .select({ studentId: groupStudents.studentId })
     .from(groupStudents)
-    .where(eq(groupStudents.groupId, gs.groupId));
+    .where(eq(groupStudents.groupSubjectId, cs.groupSubjectId));
 
   for (const s of students) {
     await db

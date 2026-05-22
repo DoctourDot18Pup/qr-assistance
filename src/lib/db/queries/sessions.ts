@@ -72,8 +72,7 @@ export async function createSession(data: NewClassSession) {
   const students = await db
     .select({ studentId: groupStudents.studentId })
     .from(groupStudents)
-    .innerJoin(groupSubjects, eq(groupStudents.groupId, groupSubjects.groupId))
-    .where(eq(groupSubjects.id, data.groupSubjectId!));
+    .where(eq(groupStudents.groupSubjectId, data.groupSubjectId!));
 
   if (students.length > 0) {
     await db.insert(attendances).values(

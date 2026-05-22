@@ -29,7 +29,7 @@ export async function getReportData(groupSubjectId: number) {
     .select({ id: users.id, name: users.name, email: users.email, enrollmentNumber: users.enrollmentNumber })
     .from(groupStudents)
     .innerJoin(users, eq(groupStudents.studentId, users.id))
-    .where(eq(groupStudents.groupId, gs.group.id))
+    .where(eq(groupStudents.groupSubjectId, groupSubjectId))
     .orderBy(users.name);
 
   const allAttendances = await db

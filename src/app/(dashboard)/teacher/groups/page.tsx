@@ -26,15 +26,15 @@ async function getTeacherGroups(teacherId: number) {
     .where(and(eq(groupSubjects.teacherId, teacherId), eq(periods.active, true)));
 }
 
-async function getGroupStudentCounts(groupIds: number[]): Promise<Record<number, number>> {
-  if (groupIds.length === 0) return {};
+async function getGroupStudentCounts(gsIds: number[]): Promise<Record<number, number>> {
+  if (gsIds.length === 0) return {};
   const rows = await db
-    .select({ groupId: groupStudents.groupId, n: count() })
+    .select({ gsId: groupStudents.groupSubjectId, n: count() })
     .from(groupStudents)
-    .where(inArray(groupStudents.groupId, groupIds))
-    .groupBy(groupStudents.groupId);
+    .where(inArray(groupStudents.groupSubjectId, gsIds))
+    .groupBy(groupStudents.groupSubjectId);
   const map: Record<number, number> = {};
-  for (const r of rows) map[r.groupId] = Number(r.n);
+  for (const r of rows) map[r.gsId] = Number(r.n);
   return map;
 }
 
@@ -94,7 +94,7 @@ async function getGroupsAttendanceAvg(gsIds: number[]): Promise<Record<number, n
   return result;
 }
 
-async function getGroupStudents(groupId: number) {
+async function getGroupStudents(gsId: number) {
   return db
     .select({
       id:               users.id,
@@ -103,7 +103,7 @@ async function getGroupStudents(groupId: number) {
     })
     .from(groupStudents)
     .innerJoin(users, eq(groupStudents.studentId, users.id))
-    .where(eq(groupStudents.groupId, groupId))
+    .where(eq(groupStudents.groupSubjectId, gsId))
     .orderBy(users.name);
 }
 
@@ -152,11 +152,10 @@ export default async function TeacherGroupsPage({
   const params = await searchParams;
   const myGroups = await getTeacherGroups(teacherId);
 
-  const groupIds = [...new Set(myGroups.map(g => g.groupId))];
-  const gsIds    = myGroups.map(g => g.gsId);
+  const gsIds = myGroups.map(g => g.gsId);
 
   const [studentCounts, attendanceAvgs, sessionCounts] = await Promise.all([
-    getGroupStudentCounts(groupIds),
+    getGroupStudentCounts(gsIds),
     getGroupsAttendanceAvg(gsIds),
     getSessionCounts(gsIds),
   ]);
@@ -167,7 +166,7 @@ export default async function TeacherGroupsPage({
   let attendanceStats: Record<number, { present: number; absent: number; justified: number; total: number }> = {};
 
   if (selectedGs) {
-    students = await getGroupStudents(selectedGs.groupId);
+    students = await getGroupStudents(selectedGs.gsId);
     attendanceStats = await getAttendanceStats(selectedGs.gsId, students.map(s => s.id));
   }
 
@@ -181,7 +180,7 @@ export default async function TeacherGroupsPage({
       <div className="flex-1 px-4 md:px-7 py-4 md:py-6 space-y-[18px]">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-[14px]">
           {myGroups.map((g) => {
-            const stuCount  = studentCounts[g.groupId] ?? 0;
+            const stuCount  = studentCounts[g.gsId] ?? 0;
             const sessCount = sessionCounts[g.gsId] ?? 0;
             const avg       = attendanceAvgs[g.gsId];
             const avgColor  = avg === null ? "text-[#6B6457]"

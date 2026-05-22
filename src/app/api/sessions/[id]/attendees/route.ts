@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { attendances, users, classSessions, groupSubjects, groupStudents } from "@/lib/db/schema";
+import { attendances, users, classSessions, groupStudents } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 
@@ -35,21 +35,13 @@ export async function GET(
     .where(and(eq(attendances.classSessionId, sessionId), eq(attendances.status, "present")))
     .orderBy(attendances.registeredAt);
 
-  // Total estudiantes en el grupo
-  const [gs] = await db
-    .select({ groupId: groupSubjects.groupId })
-    .from(groupSubjects)
-    .where(eq(groupSubjects.id, cs.groupSubjectId))
-    .limit(1);
+  // Total estudiantes inscritos en esta materia del grupo
+  const enrolledRows = await db
+    .select({ studentId: groupStudents.studentId })
+    .from(groupStudents)
+    .where(eq(groupStudents.groupSubjectId, cs.groupSubjectId));
 
-  let total = 0;
-  if (gs) {
-    const students = await db
-      .select({ studentId: groupStudents.studentId })
-      .from(groupStudents)
-      .where(eq(groupStudents.groupId, gs.groupId));
-    total = students.length;
-  }
+  const total = enrolledRows.length;
 
   return NextResponse.json({
     success: true,

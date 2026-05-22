@@ -1,14 +1,21 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Users } from "lucide-react";
 import { assignSubject, removeSubject, enrollStudent, removeStudent } from "./actions";
+
+interface EnrolledStudent {
+  studentId:        number;
+  name:             string;
+  enrollmentNumber: string | null;
+}
 
 interface AssignedSubject {
   gsId:        number;
   subjectName: string;
   subjectCode: string;
   teacherName: string;
+  enrolled:    EnrolledStudent[];
 }
 
 interface AvailableSubject {
@@ -22,12 +29,6 @@ interface Teacher {
   name: string;
 }
 
-interface EnrolledStudent {
-  studentId:        number;
-  name:             string;
-  enrollmentNumber: string | null;
-}
-
 interface AvailableStudent {
   id:               number;
   name:             string;
@@ -39,7 +40,6 @@ interface Props {
   assigned:          AssignedSubject[];
   availableSubjects: AvailableSubject[];
   teachers:          Teacher[];
-  enrolled:          EnrolledStudent[];
   availableStudents: AvailableStudent[];
 }
 
@@ -81,12 +81,12 @@ function RemoveSubjectBtn({ gsId, groupId }: { gsId: number; groupId: number }) 
   );
 }
 
-// ── Fila de alumno en modal ───────────────────────────────────────────────────
+// ── Fila de alumno inscrito en el modal ───────────────────────────────────────
 function EnrolledRow({
-  groupId, student, onRemoved,
+  gsId, student, onRemoved,
 }: {
-  groupId: number;
-  student: EnrolledStudent;
+  gsId:      number;
+  student:   EnrolledStudent;
   onRemoved: (id: number) => void;
 }) {
   const [confirm, setConfirm] = useState(false);
@@ -94,7 +94,7 @@ function EnrolledRow({
 
   function handleRemove() {
     startTransition(async () => {
-      const res = await removeStudent(groupId, student.studentId);
+      const res = await removeStudent(gsId, student.studentId);
       if (res.ok) onRemoved(student.studentId);
       else setConfirm(false);
     });
@@ -132,31 +132,32 @@ function EnrolledRow({
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export function SubjectManager({
-  groupId, assigned, availableSubjects, teachers, enrolled, availableStudents,
+  groupId, assigned, availableSubjects, teachers, availableStudents,
 }: Props) {
-  // Estado: modal de materias
+  // Estado: modal asignar materia
   const [openSubject, setOpenSubject] = useState(false);
   const [subjectId, setSubjectId] = useState("");
   const [teacherId, setTeacherId] = useState("");
   const [subjectError, setSubjectError] = useState("");
   const [subjectPending, startSubjectTransition] = useTransition();
 
-  // Estado: modal de alumnos
-  const [openStudents, setOpenStudents] = useState(false);
-  const [enrolledList, setEnrolledList] = useState<EnrolledStudent[]>(enrolled);
+  // Estado: modal gestionar alumnos (por gsId activo)
+  const [activeGsId, setActiveGsId] = useState<number | null>(null);
+  const [enrolledByGs, setEnrolledByGs] = useState<Record<number, EnrolledStudent[]>>(
+    () => Object.fromEntries(assigned.map(a => [a.gsId, [...a.enrolled]]))
+  );
   const [removeSearch, setRemoveSearch] = useState("");
   const [addSearch, setAddSearch] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [addError, setAddError] = useState("");
   const [addPending, startAddTransition] = useTransition();
 
-  const unassignedSubjects = availableSubjects.filter(
-    s => !assigned.some(a => a.subjectCode === s.code)
-  );
-  const enrolledIds = new Set(enrolledList.map(e => e.studentId));
-  const available = availableStudents.filter(s => !enrolledIds.has(s.id));
+  const activeSubject = assigned.find(a => a.gsId === activeGsId);
+  const activeEnrolled = activeGsId !== null ? (enrolledByGs[activeGsId] ?? []) : [];
+  const enrolledIdsInActive = new Set(activeEnrolled.map(e => e.studentId));
+  const available = availableStudents.filter(s => !enrolledIdsInActive.has(s.id));
 
-  const filteredEnrolled = enrolledList.filter(s => {
+  const filteredEnrolled = activeEnrolled.filter(s => {
     const q = removeSearch.toLowerCase();
     return s.name.toLowerCase().includes(q) || (s.enrollmentNumber ?? "").includes(q);
   });
@@ -164,6 +165,22 @@ export function SubjectManager({
     const q = addSearch.toLowerCase();
     return s.name.toLowerCase().includes(q) || (s.enrollmentNumber ?? "").includes(q);
   });
+
+  const unassignedSubjects = availableSubjects.filter(
+    s => !assigned.some(a => a.subjectCode === s.code)
+  );
+
+  function openStudentModal(gsId: number) {
+    setActiveGsId(gsId);
+    setRemoveSearch("");
+    setAddSearch("");
+    setSelectedId("");
+    setAddError("");
+  }
+
+  function closeStudentModal() {
+    setActiveGsId(null);
+  }
 
   function handleSubjectSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -180,21 +197,31 @@ export function SubjectManager({
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedId) { setAddError("Selecciona un alumno."); return; }
+    if (!selectedId || activeGsId === null) { setAddError("Selecciona un alumno."); return; }
     setAddError("");
     startAddTransition(async () => {
-      const res = await enrollStudent(groupId, Number(selectedId));
+      const res = await enrollStudent(activeGsId, Number(selectedId));
       if (!res.ok) { setAddError(res.message ?? "Error."); return; }
       const newStudent = availableStudents.find(s => s.id === Number(selectedId))!;
-      setEnrolledList(prev => [...prev, { studentId: newStudent.id, name: newStudent.name, enrollmentNumber: newStudent.enrollmentNumber }]
-        .sort((a, b) => a.name.localeCompare(b.name)));
+      setEnrolledByGs(prev => ({
+        ...prev,
+        [activeGsId]: [...(prev[activeGsId] ?? []), {
+          studentId:        newStudent.id,
+          name:             newStudent.name,
+          enrollmentNumber: newStudent.enrollmentNumber,
+        }].sort((a, b) => a.name.localeCompare(b.name)),
+      }));
       setSelectedId("");
       setAddSearch("");
     });
   }
 
   function handleRemoved(studentId: number) {
-    setEnrolledList(prev => prev.filter(s => s.studentId !== studentId));
+    if (activeGsId === null) return;
+    setEnrolledByGs(prev => ({
+      ...prev,
+      [activeGsId]: (prev[activeGsId] ?? []).filter(s => s.studentId !== studentId),
+    }));
   }
 
   return (
@@ -202,21 +229,13 @@ export function SubjectManager({
       {/* Encabezado */}
       <div className="flex items-center justify-between px-[18px] py-4 border-b border-[#D8CFB8] flex-wrap gap-2">
         <span className="text-sm font-semibold text-[#0A0A0A]">Materias asignadas</span>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setOpenStudents(true)}
-            className="h-7 px-3 text-[12px] font-semibold border border-[#1B3A2D] text-[#1B3A2D] rounded hover:bg-[#F5F1EA] transition-colors"
-          >
-            Gestionar alumnos ({enrolledList.length})
-          </button>
-          <button
-            onClick={() => setOpenSubject(true)}
-            disabled={unassignedSubjects.length === 0}
-            className="h-7 px-3 text-[12px] font-semibold bg-[#1B3A2D] text-white rounded hover:bg-[#163023] transition-colors flex items-center gap-1.5 disabled:opacity-40"
-          >
-            <Plus size={12} /> Asignar materia
-          </button>
-        </div>
+        <button
+          onClick={() => setOpenSubject(true)}
+          disabled={unassignedSubjects.length === 0}
+          className="h-7 px-3 text-[12px] font-semibold bg-[#1B3A2D] text-white rounded hover:bg-[#163023] transition-colors flex items-center gap-1.5 disabled:opacity-40"
+        >
+          <Plus size={12} /> Asignar materia
+        </button>
       </div>
 
       {/* Tabla de materias */}
@@ -232,20 +251,32 @@ export function SubjectManager({
                 <th className="text-left px-[18px] py-3">Materia</th>
                 <th className="text-left px-4 py-3">Código</th>
                 <th className="text-left px-4 py-3">Docente</th>
+                <th className="text-left px-4 py-3">Alumnos</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
-              {assigned.map((a, i) => (
-                <tr key={a.gsId} className={i % 2 === 1 ? "bg-[#F5F1EA]" : ""}>
-                  <td className="px-[18px] py-3 font-semibold text-[#0A0A0A]">{a.subjectName}</td>
-                  <td className="px-4 py-3 tabular text-[#6B6457]">{a.subjectCode}</td>
-                  <td className="px-4 py-3 text-[#6B6457]">{a.teacherName}</td>
-                  <td className="px-4 py-3 text-right">
-                    <RemoveSubjectBtn gsId={a.gsId} groupId={groupId} />
-                  </td>
-                </tr>
-              ))}
+              {assigned.map((a, i) => {
+                const count = (enrolledByGs[a.gsId] ?? []).length;
+                return (
+                  <tr key={a.gsId} className={i % 2 === 1 ? "bg-[#F5F1EA]" : ""}>
+                    <td className="px-[18px] py-3 font-semibold text-[#0A0A0A]">{a.subjectName}</td>
+                    <td className="px-4 py-3 tabular text-[#6B6457]">{a.subjectCode}</td>
+                    <td className="px-4 py-3 text-[#6B6457]">{a.teacherName}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => openStudentModal(a.gsId)}
+                        className="inline-flex items-center gap-1.5 h-6 px-2.5 text-[11px] font-semibold border border-[#1B3A2D] text-[#1B3A2D] rounded hover:bg-[#F5F1EA] transition-colors"
+                      >
+                        <Users size={11} /> {count}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <RemoveSubjectBtn gsId={a.gsId} groupId={groupId} />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -299,17 +330,21 @@ export function SubjectManager({
         </div>
       )}
 
-      {/* ── Modal: gestionar alumnos ───────────────────────────────────────── */}
-      {openStudents && (
+      {/* ── Modal: gestionar alumnos de una materia ────────────────────────── */}
+      {activeGsId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setOpenStudents(false)} />
+          <div className="absolute inset-0 bg-black/30" onClick={closeStudentModal} />
           <div className="relative bg-white border border-[#D8CFB8] rounded-[6px] w-full max-w-lg flex flex-col max-h-[85vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#D8CFB8] shrink-0">
-              <span className="text-sm font-semibold text-[#0A0A0A]">
-                Alumnos del grupo
-                <span className="ml-2 text-[#6B6457] font-normal text-xs">({enrolledList.length} inscritos)</span>
-              </span>
-              <button onClick={() => setOpenStudents(false)} className="text-[#6B6457] hover:text-[#0A0A0A]">
+              <div>
+                <span className="text-sm font-semibold text-[#0A0A0A]">
+                  {activeSubject?.subjectName}
+                </span>
+                <span className="ml-2 text-[#6B6457] font-normal text-xs">
+                  ({activeEnrolled.length} inscrito{activeEnrolled.length !== 1 ? "s" : ""})
+                </span>
+              </div>
+              <button onClick={closeStudentModal} className="text-[#6B6457] hover:text-[#0A0A0A]">
                 <X size={16} />
               </button>
             </div>
@@ -326,13 +361,13 @@ export function SubjectManager({
                 />
               </div>
               <div className="border-y border-[#D8CFB8] mx-6 rounded mb-4 max-h-48 overflow-y-auto">
-                {enrolledList.length === 0 ? (
+                {activeEnrolled.length === 0 ? (
                   <div className="py-6 text-center text-xs text-[#6B6457]">Sin alumnos inscritos.</div>
                 ) : filteredEnrolled.length === 0 ? (
                   <div className="py-4 text-center text-xs text-[#6B6457]">Sin resultados.</div>
                 ) : (
                   filteredEnrolled.map(s => (
-                    <EnrolledRow key={s.studentId} groupId={groupId} student={s} onRemoved={handleRemoved} />
+                    <EnrolledRow key={s.studentId} gsId={activeGsId} student={s} onRemoved={handleRemoved} />
                   ))
                 )}
               </div>

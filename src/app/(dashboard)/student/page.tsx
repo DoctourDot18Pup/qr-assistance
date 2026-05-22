@@ -23,11 +23,11 @@ async function getStudentData(studentId: number) {
       teacherName: teacher.name,
     })
     .from(groupStudents)
-    .innerJoin(groups,        eq(groupStudents.groupId,   groups.id))
-    .innerJoin(groupSubjects, eq(groupSubjects.groupId,   groups.id))
-    .innerJoin(subjects,      eq(groupSubjects.subjectId, subjects.id))
-    .innerJoin(periods,       eq(groups.periodId,         periods.id))
-    .innerJoin(teacher,       eq(groupSubjects.teacherId, teacher.id))
+    .innerJoin(groupSubjects, eq(groupStudents.groupSubjectId, groupSubjects.id))
+    .innerJoin(groups,        eq(groupSubjects.groupId,        groups.id))
+    .innerJoin(subjects,      eq(groupSubjects.subjectId,      subjects.id))
+    .innerJoin(periods,       eq(groups.periodId,              periods.id))
+    .innerJoin(teacher,       eq(groupSubjects.teacherId,      teacher.id))
     .where(and(eq(groupStudents.studentId, studentId), eq(periods.active, true)));
 
   if (mySubjects.length === 0) {

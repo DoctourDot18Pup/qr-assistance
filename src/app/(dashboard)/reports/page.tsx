@@ -37,20 +37,14 @@ async function getReportData(gsId: number) {
 
   const total = Number(totalSessions.n);
 
-  const [gs] = await db
-    .select({ groupId: groupSubjects.groupId })
-    .from(groupSubjects)
-    .where(eq(groupSubjects.id, gsId))
-    .limit(1);
-
-  if (!gs) return { rows: [], total, groupAvg: null };
-
   const studentList = await db
     .select({ id: users.id, name: users.name, enrollmentNumber: users.enrollmentNumber })
     .from(groupStudents)
     .innerJoin(users, eq(groupStudents.studentId, users.id))
-    .where(eq(groupStudents.groupId, gs.groupId))
+    .where(eq(groupStudents.groupSubjectId, gsId))
     .orderBy(users.name);
+
+  if (studentList.length === 0 && total === 0) return { rows: [], total, groupAvg: null };
 
   const stats = await db
     .select({ studentId: attendances.studentId, status: attendances.status, n: count() })

@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import {
   classSessions, groupSubjects, groups, subjects, periods, attendances, groupStudents,
 } from "@/lib/db/schema";
-import { eq, and, count, desc } from "drizzle-orm";
+import { eq, and, count, desc, inArray } from "drizzle-orm";
 import { Header } from "@/components/shell/header";
 import { QrBadge } from "@/components/ui/qr-badge";
 import { NewSessionButton } from "./new-session-button";
@@ -13,12 +13,13 @@ import Link from "next/link";
 async function getTeacherSessions(teacherId: number) {
   const rows = await db
     .select({
-      id:          classSessions.id,
-      date:        classSessions.date,
-      closedAt:    classSessions.closedAt,
-      status:      classSessions.status,
-      groupName:   groups.name,
-      subjectName: subjects.name,
+      id:             classSessions.id,
+      date:           classSessions.date,
+      closedAt:       classSessions.closedAt,
+      status:         classSessions.status,
+      groupSubjectId: classSessions.groupSubjectId,
+      groupName:      groups.name,
+      subjectName:    subjects.name,
     })
     .from(classSessions)
     .innerJoin(groupSubjects, eq(classSessions.groupSubjectId, groupSubjects.id))
@@ -40,21 +41,17 @@ async function getTeacherSessions(teacherId: number) {
     presentes[r.id] = Number(p.n);
   }
 
-  // Total de estudiantes por sesión (via groupSubject → group)
-  const gsData = await db
-    .select({ sessionId: classSessions.id, groupId: groups.id })
-    .from(classSessions)
-    .innerJoin(groupSubjects, eq(classSessions.groupSubjectId, groupSubjects.id))
-    .innerJoin(groups, eq(groupSubjects.groupId, groups.id))
-    .where(eq(groupSubjects.teacherId, teacherId));
-
-  for (const d of gsData) {
-    if (totalStudents[d.sessionId] !== undefined) continue;
-    const [t] = await db
-      .select({ n: count() })
+  // Total de estudiantes por sesión (directo por groupSubjectId)
+  const uniqueGsIds = [...new Set(rows.map(r => r.groupSubjectId))];
+  if (uniqueGsIds.length > 0) {
+    const counts = await db
+      .select({ gsId: groupStudents.groupSubjectId, n: count() })
       .from(groupStudents)
-      .where(eq(groupStudents.groupId, d.groupId));
-    totalStudents[d.sessionId] = Number(t.n);
+      .where(inArray(groupStudents.groupSubjectId, uniqueGsIds))
+      .groupBy(groupStudents.groupSubjectId);
+    const countMap: Record<number, number> = {};
+    for (const c of counts) countMap[c.gsId] = Number(c.n);
+    for (const r of rows) totalStudents[r.id] = countMap[r.groupSubjectId] ?? 0;
   }
 
   return rows.map(r => ({

@@ -5,7 +5,7 @@ import {
   groupSubjects, groups, subjects, periods,
   groupStudents, users, attendances, classSessions,
 } from "@/lib/db/schema";
-import { eq, and, count, sql } from "drizzle-orm";
+import { eq, count } from "drizzle-orm";
 import { Header } from "@/components/shell/header";
 import { QrBadge, attendanceTone } from "@/components/ui/qr-badge";
 import { Download } from "lucide-react";
@@ -38,20 +38,12 @@ async function getReportData(gsId: number) {
 
   const total = Number(totalSessions.n);
 
-  // Estudiantes del grupo
-  const [gs] = await db
-    .select({ groupId: groupSubjects.groupId })
-    .from(groupSubjects)
-    .where(eq(groupSubjects.id, gsId))
-    .limit(1);
-
-  if (!gs) return { rows: [], total, groupAvg: 0 };
-
+  // Estudiantes de esta materia
   const studentList = await db
     .select({ id: users.id, name: users.name, enrollmentNumber: users.enrollmentNumber })
     .from(groupStudents)
     .innerJoin(users, eq(groupStudents.studentId, users.id))
-    .where(eq(groupStudents.groupId, gs.groupId))
+    .where(eq(groupStudents.groupSubjectId, gsId))
     .orderBy(users.name);
 
   // Stats por estudiante

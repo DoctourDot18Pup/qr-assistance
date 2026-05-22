@@ -20,7 +20,7 @@ export type ImportResult = {
 };
 
 export async function importGroupStudents(
-  groupId: number,
+  gsId: number,
   rows: ImportRow[]
 ): Promise<ImportResult[]> {
   const session = await auth();
@@ -31,7 +31,7 @@ export async function importGroupStudents(
   const [owned] = await db
     .select({ id: groupSubjects.id })
     .from(groupSubjects)
-    .where(and(eq(groupSubjects.groupId, groupId), eq(groupSubjects.teacherId, teacherId)))
+    .where(and(eq(groupSubjects.id, gsId), eq(groupSubjects.teacherId, teacherId)))
     .limit(1);
 
   if (!owned) throw new Error("No tienes acceso a este grupo.");
@@ -41,8 +41,7 @@ export async function importGroupStudents(
   const activeSessions = await db
     .select({ id: classSessions.id })
     .from(classSessions)
-    .innerJoin(groupSubjects, eq(classSessions.groupSubjectId, groupSubjects.id))
-    .where(and(eq(groupSubjects.groupId, groupId), eq(classSessions.status, "active")));
+    .where(and(eq(classSessions.groupSubjectId, gsId), eq(classSessions.status, "active")));
 
   const results: ImportResult[] = [];
 
@@ -83,15 +82,15 @@ export async function importGroupStudents(
       const alreadyEnrolled = await db
         .select()
         .from(groupStudents)
-        .where(and(eq(groupStudents.groupId, groupId), eq(groupStudents.studentId, studentId)))
+        .where(and(eq(groupStudents.groupSubjectId, gsId), eq(groupStudents.studentId, studentId)))
         .limit(1);
 
       if (alreadyEnrolled.length > 0) {
-        results.push({ name, email, status: "already", message: "Ya está inscrito en este grupo." });
+        results.push({ name, email, status: "already", message: "Ya está inscrito en esta materia." });
         continue;
       }
 
-      await db.insert(groupStudents).values({ groupId, studentId });
+      await db.insert(groupStudents).values({ groupSubjectId: gsId, studentId });
 
       if (activeSessions.length > 0) {
         await db

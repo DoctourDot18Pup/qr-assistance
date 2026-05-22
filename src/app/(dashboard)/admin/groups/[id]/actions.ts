@@ -6,6 +6,15 @@ import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 
+async function getGroupIdForGs(gsId: number): Promise<number | null> {
+  const [gs] = await db
+    .select({ groupId: groupSubjects.groupId })
+    .from(groupSubjects)
+    .where(eq(groupSubjects.id, gsId))
+    .limit(1);
+  return gs?.groupId ?? null;
+}
+
 async function requireAdmin(): Promise<{ ok: false; message: string } | null> {
   const session = await auth();
   const user = session?.user as { role?: string } | undefined;
@@ -53,23 +62,24 @@ export async function removeSubject(
 }
 
 export async function enrollStudent(
-  groupId: number,
+  gsId: number,
   studentId: number,
 ): Promise<{ ok: boolean; message?: string }> {
   const err = await requireAdmin();
   if (err) return err;
 
   try {
-    await db.insert(groupStudents).values({ groupId, studentId });
-    revalidatePath(`/admin/groups/${groupId}`);
+    await db.insert(groupStudents).values({ groupSubjectId: gsId, studentId });
+    const groupId = await getGroupIdForGs(gsId);
+    if (groupId) revalidatePath(`/admin/groups/${groupId}`);
     return { ok: true };
   } catch {
-    return { ok: false, message: "El alumno ya está inscrito en este grupo." };
+    return { ok: false, message: "El alumno ya está inscrito en esta materia." };
   }
 }
 
 export async function removeStudent(
-  groupId: number,
+  gsId: number,
   studentId: number,
 ): Promise<{ ok: boolean; message?: string }> {
   const err = await requireAdmin();
@@ -77,8 +87,9 @@ export async function removeStudent(
 
   await db
     .delete(groupStudents)
-    .where(and(eq(groupStudents.groupId, groupId), eq(groupStudents.studentId, studentId)));
+    .where(and(eq(groupStudents.groupSubjectId, gsId), eq(groupStudents.studentId, studentId)));
 
-  revalidatePath(`/admin/groups/${groupId}`);
+  const groupId = await getGroupIdForGs(gsId);
+  if (groupId) revalidatePath(`/admin/groups/${groupId}`);
   return { ok: true };
 }

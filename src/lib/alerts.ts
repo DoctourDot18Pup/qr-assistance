@@ -24,7 +24,7 @@ export async function checkAttendanceAlerts(sessionId: number): Promise<void> {
   const { groupSubjectId } = session;
 
   const [gs] = await db
-    .select({ groupId: groupSubjects.groupId, subjectId: groupSubjects.subjectId })
+    .select({ subjectId: groupSubjects.subjectId })
     .from(groupSubjects)
     .where(eq(groupSubjects.id, groupSubjectId))
     .limit(1);
@@ -52,7 +52,7 @@ export async function checkAttendanceAlerts(sessionId: number): Promise<void> {
   const students = await db
     .select({ studentId: groupStudents.studentId })
     .from(groupStudents)
-    .where(eq(groupStudents.groupId, gs.groupId));
+    .where(eq(groupStudents.groupSubjectId, groupSubjectId));
 
   if (students.length === 0) return;
 

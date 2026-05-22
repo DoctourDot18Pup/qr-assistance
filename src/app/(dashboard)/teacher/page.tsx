@@ -21,7 +21,6 @@ async function getTeacherData(teacherId: number) {
   const myGroups = await db
     .select({
       gsId:        groupSubjects.id,
-      groupId:     groups.id,
       groupName:   groups.name,
       subjectName: subjects.name,
       periodName:  periods.name,
@@ -36,8 +35,7 @@ async function getTeacherData(teacherId: number) {
     return { myGroups: [], studentsPerGroup: {}, gsAvgMap: {}, overallAvg: null, kpis: { groups: 0, sessionsToday: 0, nextHour: null } };
   }
 
-  const gsIds    = myGroups.map(g => g.gsId);
-  const groupIds = [...new Set(myGroups.map(g => g.groupId))];
+  const gsIds = myGroups.map(g => g.gsId);
 
   const [todaySessions] = await db
     .select({ n: count() })
@@ -61,13 +59,13 @@ async function getTeacherData(teacherId: number) {
     .limit(1);
 
   const studentCounts = await db
-    .select({ groupId: groupStudents.groupId, n: count() })
+    .select({ gsId: groupStudents.groupSubjectId, n: count() })
     .from(groupStudents)
-    .where(inArray(groupStudents.groupId, groupIds))
-    .groupBy(groupStudents.groupId);
+    .where(inArray(groupStudents.groupSubjectId, gsIds))
+    .groupBy(groupStudents.groupSubjectId);
 
   const studentsPerGroup: Record<number, number> = {};
-  for (const sc of studentCounts) studentsPerGroup[sc.groupId] = Number(sc.n);
+  for (const sc of studentCounts) studentsPerGroup[sc.gsId] = Number(sc.n);
 
   // Attendance stats per group-subject for cards + overall average
   const attRows = await db
@@ -202,7 +200,7 @@ export default async function TeacherHomePage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2">
               {myGroups.slice(0, 4).map((g, i) => {
-                const studentCount = studentsPerGroup[g.groupId] ?? 0;
+                const studentCount = studentsPerGroup[g.gsId] ?? 0;
                 const avg          = gsAvgMap[g.gsId];
                 const isLast       = i >= myGroups.slice(0, 4).length - 2;
                 return (

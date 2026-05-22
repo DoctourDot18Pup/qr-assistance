@@ -51,15 +51,16 @@ export async function getGroupById(id: number) {
     .where(eq(groupSubjects.groupId, id));
 
   const studentsList = await db
-    .select({
+    .selectDistinct({
       id: users.id,
       name: users.name,
       email: users.email,
       enrollmentNumber: users.enrollmentNumber,
     })
     .from(groupStudents)
+    .innerJoin(groupSubjects, eq(groupStudents.groupSubjectId, groupSubjects.id))
     .innerJoin(users, eq(groupStudents.studentId, users.id))
-    .where(eq(groupStudents.groupId, id));
+    .where(eq(groupSubjects.groupId, id));
 
   return { ...group, groupSubjects: groupSubjectsList, students: studentsList };
 }
@@ -94,18 +95,18 @@ export async function removeSubjectFromGroup(gsId: number) {
   await db.delete(groupSubjects).where(eq(groupSubjects.id, gsId));
 }
 
-export async function addStudentToGroup(groupId: number, studentId: number) {
-  const [gs] = await db
+export async function addStudentToGroupSubject(gsId: number, studentId: number) {
+  const [row] = await db
     .insert(groupStudents)
-    .values({ groupId, studentId })
+    .values({ groupSubjectId: gsId, studentId })
     .returning();
-  return gs;
+  return row;
 }
 
-export async function removeStudentFromGroup(groupId: number, studentId: number) {
+export async function removeStudentFromGroupSubject(gsId: number, studentId: number) {
   await db
     .delete(groupStudents)
-    .where(and(eq(groupStudents.groupId, groupId), eq(groupStudents.studentId, studentId)));
+    .where(and(eq(groupStudents.groupSubjectId, gsId), eq(groupStudents.studentId, studentId)));
 }
 
 export async function getGroupSubjectById(gsId: number) {

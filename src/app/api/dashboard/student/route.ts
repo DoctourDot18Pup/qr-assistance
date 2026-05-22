@@ -19,7 +19,7 @@ export async function GET() {
         teacherName: users.name,
       })
       .from(groupStudents)
-      .innerJoin(groupSubjects, eq(groupStudents.groupId, groupSubjects.groupId))
+      .innerJoin(groupSubjects, eq(groupStudents.groupSubjectId, groupSubjects.id))
       .innerJoin(subjects, eq(groupSubjects.subjectId, subjects.id))
       .innerJoin(groups, eq(groupSubjects.groupId, groups.id))
       .innerJoin(users, eq(groupSubjects.teacherId, users.id))

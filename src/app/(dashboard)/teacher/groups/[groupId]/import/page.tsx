@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { groups, groupSubjects } from "@/lib/db/schema";
+import { groups, groupSubjects, subjects } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { Header } from "@/components/shell/header";
 import { ImportGroupStudentsClient } from "./import-client";
@@ -17,24 +17,25 @@ export default async function TeacherGroupImportPage({
   const teacherId = Number(session.user.id);
 
   const { groupId: rawId } = await params;
-  const groupId = Number(rawId);
+  const gsId = Number(rawId);
 
-  if (!groupId) notFound();
+  if (!gsId) notFound();
 
-  const [groupRow] = await db
-    .select({ name: groups.name })
-    .from(groups)
-    .innerJoin(groupSubjects, eq(groupSubjects.groupId, groups.id))
-    .where(and(eq(groups.id, groupId), eq(groupSubjects.teacherId, teacherId)))
+  const [gsRow] = await db
+    .select({ groupName: groups.name, subjectName: subjects.name })
+    .from(groupSubjects)
+    .innerJoin(groups,   eq(groupSubjects.groupId,   groups.id))
+    .innerJoin(subjects, eq(groupSubjects.subjectId, subjects.id))
+    .where(and(eq(groupSubjects.id, gsId), eq(groupSubjects.teacherId, teacherId)))
     .limit(1);
 
-  if (!groupRow) notFound();
+  if (!gsRow) notFound();
 
   return (
     <div className="flex flex-col flex-1">
       <Header
-        title={`Importar alumnos — ${groupRow.name}`}
-        subtitle="Inscribir estudiantes al grupo desde un archivo CSV"
+        title={`Importar alumnos — ${gsRow.groupName} · ${gsRow.subjectName}`}
+        subtitle="Inscribir estudiantes a esta materia desde un archivo CSV"
         actions={
           <Link
             href="/teacher/groups"
@@ -45,7 +46,7 @@ export default async function TeacherGroupImportPage({
         }
       />
       <div className="flex-1 px-4 md:px-7 py-4 md:py-6">
-        <ImportGroupStudentsClient groupId={groupId} />
+        <ImportGroupStudentsClient groupId={gsId} />
       </div>
     </div>
   );

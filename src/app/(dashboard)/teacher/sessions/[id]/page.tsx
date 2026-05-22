@@ -26,14 +26,14 @@ export default async function SessionDetailPage({
 
   const [cs] = await db
     .select({
-      id:           classSessions.id,
-      date:         classSessions.date,
-      closedAt:     classSessions.closedAt,
-      status:       classSessions.status,
-      groupId:      groups.id,
-      groupName:    groups.name,
-      subjectName:  subjects.name,
-      teacherId:    groupSubjects.teacherId,
+      id:             classSessions.id,
+      date:           classSessions.date,
+      closedAt:       classSessions.closedAt,
+      status:         classSessions.status,
+      groupSubjectId: classSessions.groupSubjectId,
+      groupName:      groups.name,
+      subjectName:    subjects.name,
+      teacherId:      groupSubjects.teacherId,
     })
     .from(classSessions)
     .innerJoin(groupSubjects, eq(classSessions.groupSubjectId, groupSubjects.id))
@@ -57,7 +57,7 @@ export default async function SessionDetailPage({
       .select({ studentId: users.id, name: users.name, enrollmentNumber: users.enrollmentNumber })
       .from(groupStudents)
       .innerJoin(users, eq(groupStudents.studentId, users.id))
-      .where(eq(groupStudents.groupId, cs.groupId))
+      .where(eq(groupStudents.groupSubjectId, cs.groupSubjectId))
       .orderBy(users.name);
 
     const attRows = await db

@@ -68,9 +68,9 @@ export const groupSubjects = pgTable('group_subjects', {
 }, (t) => [uniqueIndex('gs_group_subject_idx').on(t.groupId, t.subjectId)]);
 
 export const groupStudents = pgTable('group_students', {
-  groupId:   integer('group_id').notNull().references(() => groups.id),
-  studentId: integer('student_id').notNull().references(() => users.id),
-}, (t) => [primaryKey({ columns: [t.groupId, t.studentId] })]);
+  groupSubjectId: integer('group_subject_id').notNull().references(() => groupSubjects.id),
+  studentId:      integer('student_id').notNull().references(() => users.id),
+}, (t) => [primaryKey({ columns: [t.groupSubjectId, t.studentId] })]);
 
 export const classSessions = pgTable('class_sessions', {
   id:               serial('id').primaryKey(),
