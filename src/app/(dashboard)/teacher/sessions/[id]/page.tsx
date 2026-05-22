@@ -10,6 +10,7 @@ import { Header } from "@/components/shell/header";
 import { QrBadge } from "@/components/ui/qr-badge";
 import { ActiveSession } from "./active-session";
 import { ClosedSession, RosterRow } from "./closed-session";
+import { SessionStatusBadge } from "./session-status-badge";
 
 export default async function SessionDetailPage({
   params,
@@ -43,8 +44,9 @@ export default async function SessionDetailPage({
 
   if (!cs || cs.teacherId !== teacherId) notFound();
 
-  const startTime  = cs.date?.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) ?? "—";
-  const closedTime = cs.closedAt?.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+  const TZ = "America/Mexico_City";
+  const startTime  = cs.date?.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", timeZone: TZ }) ?? "—";
+  const closedTime = cs.closedAt?.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
   const durationMins = cs.date && cs.closedAt
     ? Math.round((cs.closedAt.getTime() - cs.date.getTime()) / 60000)
     : cs.date ? Math.floor((Date.now() - cs.date.getTime()) / 60000) : 0;
@@ -106,7 +108,7 @@ export default async function SessionDetailPage({
       <div className="flex flex-col flex-1">
         <Header
           title={`${cs.groupName} · ${cs.subjectName}`}
-          subtitle={`${cs.date?.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" })} · ${startTime}${closedTime ? ` – ${closedTime}` : ""}`}
+          subtitle={`${cs.date?.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", timeZone: TZ })} · ${startTime}${closedTime ? ` – ${closedTime}` : ""}`}
           actions={<QrBadge tone="gray">Cerrada · {durationMins} min</QrBadge>}
         />
         <ClosedSession
@@ -123,7 +125,7 @@ export default async function SessionDetailPage({
       <Header
         title={`Sesión · ${cs.groupName} · ${cs.subjectName}`}
         subtitle={`Iniciada a las ${startTime}`}
-        actions={<QrBadge tone="gold">Activa · {durationMins} min transcurridos</QrBadge>}
+        actions={<SessionStatusBadge startedAt={cs.date?.toISOString() ?? new Date().toISOString()} />}
       />
       <ActiveSession
         sessionId={cs.id}
