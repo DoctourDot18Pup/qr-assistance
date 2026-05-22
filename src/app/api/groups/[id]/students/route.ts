@@ -1,5 +1,5 @@
 import { requireRole } from '@/lib/auth-helpers';
-import { addStudentToGroup } from '@/lib/db/queries/groups';
+import { addStudentToGroupSubject } from '@/lib/db/queries/groups';
 import { getUserById } from '@/lib/db/queries/users';
 import { ok, fail } from '@/lib/utils';
 import { z } from 'zod';
@@ -20,7 +20,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (!student || student.role !== 'student')
       return fail('El usuario no es un alumno válido.', 422);
 
-    const gs = await addStudentToGroup(Number(id), parsed.data.studentId);
+    const gs = await addStudentToGroupSubject(Number(id), parsed.data.studentId);
     return ok(gs, 'Alumno inscrito al grupo.', 201);
   } catch (e) {
     if (e instanceof Response) return e;

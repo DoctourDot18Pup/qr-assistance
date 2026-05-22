@@ -1,5 +1,5 @@
 import { requireRole } from '@/lib/auth-helpers';
-import { removeStudentFromGroup } from '@/lib/db/queries/groups';
+import { removeStudentFromGroupSubject } from '@/lib/db/queries/groups';
 import { ok, fail } from '@/lib/utils';
 
 export async function DELETE(
@@ -9,7 +9,7 @@ export async function DELETE(
   try {
     await requireRole(['admin']);
     const { id, studentId } = await params;
-    await removeStudentFromGroup(Number(id), Number(studentId));
+    await removeStudentFromGroupSubject(Number(id), Number(studentId));
     return ok(null, 'Alumno removido del grupo.');
   } catch (e) {
     if (e instanceof Response) return e;
